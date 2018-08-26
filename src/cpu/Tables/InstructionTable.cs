@@ -1,6 +1,6 @@
-﻿namespace cpu
+﻿namespace vm.cpu.tables
 {
-    public class InstructionTable
+    public abstract class InstructionTable
     {
         /// <summary>
         /// Enumeration of Addressing Modes.

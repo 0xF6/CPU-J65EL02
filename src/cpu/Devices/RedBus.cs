@@ -1,5 +1,7 @@
-﻿namespace cpu.Devices
+﻿namespace vm.devices
 {
+    using cpu;
+
     public class RedBus : Device 
     {
         /// <summary>
@@ -12,14 +14,14 @@
             void update();
         }
 
-        public RedBus() : base(-1, -1) { }  // there is no fixed address for the redbus
+        public RedBus(CPU cpu) : base(-1, -1, cpu) { }  // there is no fixed address for the redbus
 
         private readonly Peripheral[] peripherals = new Peripheral[0x100];
 
         public int activeDeviceID  { get; set; }
         private bool enabled { get; set; }
 
-        private bool enableWindow { get; set; }
+        public bool enableWindow { get; set; }
         public override void write(int address, int data)
         {
             if (!this.enabled) return;
@@ -45,5 +47,6 @@
         public void Disable() => this.enabled = false;
         public void setPeripheral(int id, Peripheral peripheral) => this.peripherals[id] = peripheral;
         public void updatePeripheral() => this.peripherals[this.activeDeviceID]?.update();
+        
     }
 }

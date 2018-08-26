@@ -1,8 +1,10 @@
-﻿namespace cpu
+﻿namespace vm.components
 {
     using System;
     using System.Collections.Generic;
-    using Devices;
+    using System.Drawing;
+    using devices;
+    using RC.Framework.Screens;
 
     public class Bus
     {
@@ -20,6 +22,7 @@
 
         public void AddDevice(Device device)
         {
+            Log.nf($"dev->{device.GetType().Name}->init", RCL.Wrap("BUS", Color.Aquamarine));
             this.devices.Add(device);
             var newBoundaries = new int[this.boundaries.Length + 1];
             Array.Copy(this.boundaries, 0, newBoundaries, 1, this.boundaries.Length);
@@ -51,6 +54,7 @@
                 return this.RedBus;
             var idx = Array.BinarySearch(this.boundaries, address);
             if (idx < 0) idx = -idx - 2;
+            if (idx == -1) idx = 0;
             return this.devices[idx];
         }
     }

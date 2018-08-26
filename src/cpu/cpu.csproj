@@ -6,6 +6,8 @@
   <PropertyGroup>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <AssemblyName>cpu_host</AssemblyName>
+    <RootNamespace>vm</RootNamespace>
+    <StartupObject>vm.Program</StartupObject>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
     <DefineConstants>TRACE;RELEASE;</DefineConstants>
@@ -14,4 +16,10 @@
     <DefineConstants>TRACE;DEBUG;</DefineConstants>
     <WarningsAsErrors>NU1605;CS0168</WarningsAsErrors>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="RC.Core" Version="2018.1.0" />
+  </ItemGroup>
 </Project>

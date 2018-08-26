@@ -1,18 +1,22 @@
-﻿namespace cpu.Devices
+﻿namespace vm.devices
 {
+    using cpu;
+
     /// <summary>
     /// A memory-mapped IO Device.
     /// </summary>
     public abstract class Device
     {
+        protected readonly CPU cpu;
         protected int startAddress { get; set; }
         protected int endAddress { get; set; }
 
         public int Size => this.endAddress - this.startAddress + 1;
         public int StartAddress => this.startAddress;
 
-        protected Device(int startAddress, int endAddress)
+        protected Device(int startAddress, int endAddress, CPU cp)
         {
+            cpu = cp;
             this.startAddress = startAddress;
             this.endAddress = endAddress;
         }
