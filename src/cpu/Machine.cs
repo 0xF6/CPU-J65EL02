@@ -59,6 +59,7 @@
                 bus.AddDevice(new Acia6551(0x8800, cpu));
                 bus.AddDevice(new CRTC(0x9000, cpu, ram));
                 bus.AddDevice(new WIFICard(0x10000, cpu));
+                bus.AddDevice(new WirelessTerminal(0x11000, cpu));
                 
             }
             catch (IOException e)
