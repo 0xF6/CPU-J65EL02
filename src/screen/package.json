@@ -1,0 +1,25 @@
+{
+  "name": "screen",
+  "version": "0.0.0",
+  "description": "A screen device for 6502 cpu",
+  "main": "./app/index.js",
+  "author": "Yuuki Wesp",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^10.9.2",
+    "electron": "^3.0.0-beta.7",
+    "typescript": "^3.0.1"
+  },
+  "dependencies": {
+    "@types/express": "^4.16.0",
+    "express": "^4.16.3",
+    "linqable.ts": "^1.7.15-0",
+    "xterm": "^3.6.0",
+    "xterm-addon-ligatures": "^0.1.0-beta-2"
+  },
+  "scripts": {
+    "fire": "electron ./app/index.js",
+    "build": "tsc",
+    "start": "yarn build && yarn fire"
+  }
+}

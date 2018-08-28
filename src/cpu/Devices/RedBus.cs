@@ -14,6 +14,8 @@
             void update();
         }
 
+        public override string getName() => "RedBus";
+
         public RedBus(CPU cpu) : base(-1, -1, cpu) { }  // there is no fixed address for the redbus
 
         private readonly Peripheral[] peripherals = new Peripheral[0x100];
@@ -45,7 +47,7 @@
         public int MemoryWindow { get; set; }
         public void Enable() => this.enabled = true;
         public void Disable() => this.enabled = false;
-        public void setPeripheral(int id, Peripheral peripheral) => this.peripherals[id] = peripheral;
+        public void AddPeripheral(int id, Peripheral peripheral) => this.peripherals[id] = peripheral;
         public void updatePeripheral() => this.peripherals[this.activeDeviceID]?.update();
         
     }

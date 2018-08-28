@@ -4,8 +4,34 @@
     using System.Drawing;
     using cpu;
     using cpu.tables;
+
+    public class ClockSpeed
+    {
+        public int this [string value]
+        {
+            get
+            {
+                switch (value)
+                {
+                    case "90Hz": return 8000;
+                    case "200Hz": return 4000;
+                    case "500Hz": return 2000;
+                    case "1MHz": return 1000;
+                    case "2MHz": return 500;
+                    case "3MHz": return 333;
+                    case "4MHz": return 250;
+                    case "5MHz": return 200;
+                    case "6MHz": return 167;
+                    case "7MHz": return 143;
+                    case "8MHz": return 125;
+                }
+                return 0;
+            }
+        }
+    }
     public abstract class MonoCore : RegisterTable
     {
+        protected static readonly ClockSpeed CLOCK_SPEED = new ClockSpeed();
         public bool StackBug { get; set; } = true;
 
         public Bus Bus { get; set; }
@@ -65,7 +91,7 @@
         protected void peekAhead()
         {
             state.nextIr = Bus.read(state.PC, true);
-            Log.wr($"peekAhead $0x{state.PC:X4}->PC $0x{state.nextIr:X4}->IR", "CPU".To(Color.GreenYellow));
+            //Log.wr($"peekAhead $0x{state.PC:X4}->PC $0x{state.nextIr:X4}->IR", "CPU".To(Color.GreenYellow));
             var nextInstSize = state.getInstructionSize(state.nextIr);
             for (var i = 1; i < nextInstSize; i++)
             {

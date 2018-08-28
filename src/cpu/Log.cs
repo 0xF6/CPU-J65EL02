@@ -11,19 +11,19 @@
             if (section == "BIOS") section = RCL.Wrap("BIOS", Color.GreenYellow);
             Screen.WriteLine($"{section} ->> {cnt}");
         }
-        public static void wr(object cnt, string section = "VME")
+        public static void wr(object cnt, string section = "BIOS")
         {
-            if (section == "VM") section = RCL.Wrap("VM", Color.GreenYellow);
+            if (section == "BIOS") section = RCL.Wrap("BIOS", Color.GreenYellow);
             Screen.WriteLine($"{section} ->> {cnt}");
         }
-        public static void ft(object cnt, string section = "VME")
+        public static void ft(object cnt, string section = "BIOS")
         {
-            if (section == "VM") section = RCL.Wrap("VM", Color.GreenYellow);
-            Screen.WriteLine($"{section} ->> {cnt}");
+            if (section == "BIOS") section = RCL.Wrap("BIOS", Color.GreenYellow);
+            Screen.WriteLine($"{section} ->> {cnt.ToString().To(Color.Red)}");
         }
-        public static void er(object cnt, string section = "VME")
+        public static void er(object cnt, string section = "BIOS")
         {
-            if (section == "VM") section = RCL.Wrap("VM", Color.GreenYellow);
+            if (section == "BIOS") section = RCL.Wrap("BIOS", Color.GreenYellow);
             Screen.WriteLine($"{section} ->> {cnt}");
         }
     }

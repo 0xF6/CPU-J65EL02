@@ -20,6 +20,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="RabbitMQ.Client" Version="5.1.0" />
     <PackageReference Include="RC.Core" Version="2018.1.0" />
   </ItemGroup>
 </Project>

@@ -4,32 +4,39 @@
     using System.Collections.Generic;
     using System.Drawing;
     using devices;
+    using exceptions;
     using RC.Framework.Screens;
 
     public class Bus
     {
         public RedBus RedBus { get; private set; }
-        private List<Device> devices { get; set; }
+        public List<Device> devices { get; private set; }
+        public int BusCapacity { get; private set; }
 
         private int[] boundaries { get; set; }
 
-        public Bus(RedBus redBus)
+        public Bus(RedBus redBus) : this(redBus, 0x10) { }
+
+        public Bus(RedBus redBus, int size)
         {
-            this.RedBus = redBus;
-            this.devices = new List<Device>();
-            this.boundaries = new int[0];
+            RedBus = redBus;
+            devices = new List<Device>(size);
+            boundaries = new int[0];
+            BusCapacity = size;
         }
 
         public void AddDevice(Device device)
         {
+            if (devices.Count == BusCapacity)
+                throw new OverflowBusCapacityException();
             Log.nf($"dev->{device.GetType().Name}->init", RCL.Wrap("BUS", Color.Aquamarine));
-            this.devices.Add(device);
-            var newBoundaries = new int[this.boundaries.Length + 1];
-            Array.Copy(this.boundaries, 0, newBoundaries, 1, this.boundaries.Length);
+            devices.Add(device);
+            var newBoundaries = new int[boundaries.Length + 1];
+            Array.Copy(boundaries, 0, newBoundaries, 1, boundaries.Length);
             newBoundaries[0] = device.StartAddress;
             Array.Sort(newBoundaries);
-            this.devices.Sort();
-            this.boundaries = newBoundaries;
+            devices.Sort();
+            boundaries = newBoundaries;
         }
 
         public void write(int address, int data)
@@ -44,18 +51,21 @@
             return device.read(address - device.StartAddress, cpuAccess) & 0xff;
         }
 
-        public void update()
+        public void update() => RedBus.updatePeripheral();
+
+        public Device findDevice(int address)
         {
-            this.RedBus.updatePeripheral();
-        }
-        private Device findDevice(int address)
-        {
-            if (this.RedBus.inRange(address))
-                return this.RedBus;
-            var idx = Array.BinarySearch(this.boundaries, address);
+            if (RedBus.inRange(address))
+                return RedBus;
+            var idx = Array.BinarySearch(boundaries, address);
             if (idx < 0) idx = -idx - 2;
-            if (idx == -1) idx = 0;
-            return this.devices[idx];
+            if (idx < 0) return new CorruptedDevice();
+            return devices[idx];
+        }
+
+        public override string ToString()
+        {
+            return $"@[{-1:X}-{-1:X}] - c:{devices.Count}/{BusCapacity}";
         }
     }
 }

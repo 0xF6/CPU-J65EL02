@@ -58,6 +58,14 @@
             else
                 PushByte(data);
         }
+        public void Push(int data)
+        {
+            //ou($"push 0x{data:X4}");
+            getBus().write(0x100 + getState().SP, data);
+
+            if (getState().SP == 0)  getState().SP = 0xff;
+            else --getState().SP;
+        }
 
         /**
          * Push an item onto the stack, and decrement the stack counter.

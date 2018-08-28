@@ -80,14 +80,15 @@
         public bool mWidthFlag = true;
         public bool indexWidthFlag = true;
         public long stepCounter = 0L;
+        public long lastMemory;
 
 
         public CpuState() { }
 
         public int getInstructionSize(int insn)
         {
-            var m = this.mWidthFlag ? 1 : 0;
-            var x = this.indexWidthFlag ? 1 : 0;
+            var m = mWidthFlag ? 1 : 0;
+            var x = indexWidthFlag ? 1 : 0;
             switch (insn)
             {
                 case 0x69: // ADC IMM
@@ -124,11 +125,11 @@
             {
                 case 0:
                 case 1:
-                    return $"{this.lastPc:X4} {IR:X2}";
+                    return $"{lastPc:X4} {IR:X2}";
                 case 2:
                     return $"{lastPc:X4} {IR:X2} {args[0]:X2}";
                 case 3:
-                    return $"{this.lastPc:X4} {IR:X2} {args[0]:X2} {args[1]:X2}";
+                    return $"{lastPc:X4} {IR:X2} {args[0]:X2} {args[1]:X2}";
                 default:
                     return "???";
             }
@@ -147,25 +148,25 @@
         {
             var status = 0;
             if (carryFlag)
-                status |= CPU.P_CARRY;
+                status |= RegisterTable.P_CARRY;
             if (zeroFlag)
-                status |= CPU.P_ZERO;
+                status |= RegisterTable.P_ZERO;
             if (irqDisableFlag)
-                status |= CPU.P_IRQ_DISABLE;
+                status |= RegisterTable.P_IRQ_DISABLE;
             if (decimalModeFlag)
-                status |= CPU.P_DECIMAL;
+                status |= RegisterTable.P_DECIMAL;
             if (emulationFlag && breakFlag)
-                status |= CPU.P_BREAK_OR_X;
+                status |= RegisterTable.P_BREAK_OR_X;
             else if (indexWidthFlag)
-                status |= CPU.P_BREAK_OR_X;
+                status |= RegisterTable.P_BREAK_OR_X;
             if (emulationFlag)
                 status |= 0x20;
             else if (mWidthFlag)
-                status |= CPU.P_MFLAG;
+                status |= RegisterTable.P_MFLAG;
             if (overflowFlag)
-                status |= CPU.P_OVERFLOW;
+                status |= RegisterTable.P_OVERFLOW;
             if (negativeFlag)
-                status |= CPU.P_NEGATIVE;
+                status |= RegisterTable.P_NEGATIVE;
             return status;
         }
         public override string ToString() => ToTraceEvent();

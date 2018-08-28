@@ -1,0 +1,25 @@
+{
+    "compilerOptions": {
+      "target": "es6",
+      "module": "commonjs",
+      "sourceMap": true,
+      "outDir": "app",
+      "rootDir": "src",
+      "moduleResolution": "node",
+      "experimentalDecorators": true,
+      "typeRoots": [
+        "node_modules/@types",
+        "node_modules/linq/*.d.ts",
+        "node_modules/xterm/typing/*.d.ts",
+        "node_modules/electron/*.d.ts"
+      ]
+    },
+    "include": [
+      "src/**/*"
+    ],
+    "exclude": [
+      "node_modules",
+      "app",
+      "*.js"
+    ]
+  }

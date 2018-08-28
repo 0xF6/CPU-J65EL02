@@ -1,6 +1,7 @@
 ﻿namespace vm
 {
     using System;
+    using System.Text;
     using System.Threading;
     using RC.Framework.Screens;
 
@@ -11,9 +12,11 @@
             Console.Title = "cpu_host";
             RCL.EnablingVirtualTerminalProcessing();
             RCL.SetThrowCustomColor(false);
+            
+            
             new Thread((() =>
             {
-                new Machine(@"C:\Git\CPU-J65EL02\src\cpu\bootloader.bin", 0x2000).run();
+                new Machine(@".\..\..\..\hello.bin", @".\..\..\..\hello_world.bin" , 0x20000).run();
             })).Start();
             Console.ReadLine();
         }

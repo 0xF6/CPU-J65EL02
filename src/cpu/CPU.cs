@@ -1,14 +1,16 @@
 ﻿namespace vm.cpu
 {
-    using System.Drawing;
+    using System;
+    using System.Linq;
     using System.Text;
+    using System.Threading;
     using components;
-    using RC.Framework.Screens;
     using tables;
     using Screen = devices.Screen;
 
     public class CPU : MemoryTable
     {
+        public SpinWait CPUSpin = new SpinWait();
         public Screen screen { get; set; }
         public Instructor instructor { get; set; }
         public Stack stack { get; set; }
@@ -69,6 +71,66 @@
         public int CarryBit => state.carryFlag ? 1 : 0;
         #endregion
 
+        public void Hault(Exception e)
+        {
+            this.state.signalStop = true;
+            if (e != null)
+            {
+                //Console.BackgroundColor = ConsoleColor.White;
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.Clear();
+                Console.CursorVisible = false;
+
+                Console.WriteLine("\n");
+                Console.WriteLine("\t========  ========  ========  ========  |");
+                Console.WriteLine("\t=      =  =      =  =      =  =         |");
+                Console.WriteLine("\t=      =  =      =  =      =  =         |");
+                Console.WriteLine("\t=      =  =      =  ========  ========  |");
+                Console.WriteLine("\t=      =  =      =  =                =  |");
+                Console.WriteLine("\t=      =  =      =  =                =   ");
+                Console.WriteLine("\t========  ========  =         ========  *");
+                Console.WriteLine("\n");
+
+                var msg = e.GetType().Name.Select(x =>
+                {
+                    if (char.IsUpper(x))
+                        return $" {x}";
+                    return x.ToString();
+                }).ToArray();
+                var msg2 = string.Join("", msg).ToLower();
+                Console.WriteLine($"\t{msg2} at $0x{state.lastMemory:X8}");
+                Console.WriteLine($"  {e.Message}");
+                Console.WriteLine("\n");
+                Console.WriteLine("\tCPUState:");
+                Console.WriteLine($"\t\tA: 0x{this.state.A:X4}; AT: 0x{this.state.A_TOP:X4}; R: 0x{this.state.R:X4};");
+                Console.WriteLine($"\t\tD: 0x{this.state.D:X4}; IR: 0x{this.state.IR:X4}; X: 0x{this.state.X:X4};");
+                Console.WriteLine($"\t\tS: 0x{this.state.SP:X4}; PC: 0x{this.state.PC:X4}; Y: 0x{this.state.Y:X4};");
+                var flags = getProcessorStatusString();
+                Console.WriteLine($"\t\t{flags}");
+                Console.WriteLine("\tDevices:");
+                Console.WriteLine($"\t\t{string.Join(", \n\t\t",Bus.devices.Select(x => x.ToString()).ToArray())}");
+                Console.WriteLine("\n");
+                Console.WriteLine("\t\t\t\tPress the 'RESET'-button on restart u'r controller.");
+
+            }
+            else
+            {
+                Log.ft("HAULT CPU");
+            }
+        }
+
+        public string getProcessorStatusString()
+        {
+            return "[" + (negativeFlag ? 'N' : '*') + "-" +
+                   (this.state.overflowFlag ? 'V' : '*') + "-" +
+                   (this.state.breakFlag ? 'B' : '*') + "-" +
+                   (this.state.decimalModeFlag ? 'D' : '*') + "-" +
+                   (this.state.irqDisableFlag ? 'I' : '*') + "-" +
+                   (zeroFlag ? 'Z' : '*') + "-" +
+                   (carryFlag ? 'C' : '*') + 
+                   "]";
+        }
+
         public int ProcessorStatus
         {
             get => 0;
@@ -127,12 +189,12 @@
         private int relAddress(int offset)
         {
             // Cast the offset to a signed byte to handle negative offsets
-            return (this.state.PC + (byte)offset) & 0xffff;
+            return (state.PC + (byte)offset) & 0xffff;
         }
 
         public void setProgramCounter(int addr)
         {
-            this.state.PC = addr;
+            state.PC = addr;
 
             // As a side-effect of setting the program counter,
             // we want to peek ahead at the next state.
@@ -145,8 +207,10 @@
             stack       = new Stack(this);
         }
 
+        private long opBeginTime;
         public void cycle()
         {
+            opBeginTime = DateTime.Now.Ticks;
             if (state.signalStop) return;
             state.lastPc = state.PC;
 
@@ -195,40 +259,36 @@
                     switch (irAddressMode)
                     {
                         case 3:
-                            if (((this.state.IR >> 5) & 1) == 0)
+                            if (((state.IR >> 5) & 1) == 0)
                             { // Zero Page
-                                effectiveAddress = this.state.args[0];
+                                effectiveAddress = state.args[0];
                             }
                             else
                             { // Absolute
-                                effectiveAddress = Memory.address(this.state.args[0], this.state.args[1]);
+                                effectiveAddress = Memory.address(state.args[0], state.args[1]);
                             }
                             break;
                         case 7:
-                            if (((this.state.IR >> 5) & 1) == 0)
-                            { // Zero Page, X
-                                effectiveAddress = zpxAddress(this.state.args[0]);
-                            }
-                            else
-                            { // Absolute, X
-                                effectiveAddress = xAddress(this.state.args[0], this.state.args[1]);
-                            }
+                            if (((state.IR >> 5) & 1) == 0) // Zero Page, X
+                                effectiveAddress = zpxAddress(state.args[0]);
+                            else // Absolute, X
+                                effectiveAddress = xAddress(state.args[0], state.args[1]);
                             break;
                         case 0: // stk,S
-                            effectiveAddress = this.state.args[0] + this.state.SP & 0xffff;
+                            effectiveAddress = state.args[0] + state.SP & 0xffff;
                             break;
                         case 4: // (stk,S),Y
-                            effectiveAddress = this.state.args[0] + this.state.SP & 0xffff;
-                            effectiveAddress = yAddress(this.Bus.read(effectiveAddress, true),
-                                    this.Bus.read(effectiveAddress + 1, true));
+                            effectiveAddress = state.args[0] + state.SP & 0xffff;
+                            effectiveAddress = yAddress(Bus.read(effectiveAddress, true),
+                                    Bus.read(effectiveAddress + 1, true));
                             break;
                         case 1: // r,R
-                            effectiveAddress = this.state.args[0] + this.state.R & 0xffff;
+                            effectiveAddress = state.args[0] + state.R & 0xffff;
                             break;
                         case 5:// (r,R),Y
-                            effectiveAddress = this.state.args[0] + this.state.R & 0xffff;
-                            effectiveAddress = yAddress(this.Bus.read(effectiveAddress, true),
-                                    this.Bus.read(effectiveAddress + 1, true));
+                            effectiveAddress = state.args[0] + state.R & 0xffff;
+                            effectiveAddress = yAddress(Bus.read(effectiveAddress, true),
+                                    Bus.read(effectiveAddress + 1, true));
                             break;
                     }
                     break;
@@ -236,75 +296,71 @@
                     switch (irAddressMode)
                     {
                         case 0: // (Zero Page,X)
-                            tmp = (this.state.args[0] + this.state.X) & 0xff;
-                            effectiveAddress = Memory.address(this.Bus.read(tmp, true), this.Bus.read(tmp + 1, true));
+                            tmp = (state.args[0] + state.X) & 0xff;
+                            effectiveAddress = Memory.address(Bus.read(tmp, true), Bus.read(tmp + 1, true));
                             break;
                         case 1: // Zero Page
-                            effectiveAddress = this.state.args[0];
+                            effectiveAddress = state.args[0];
                             break;
                         case 2: // #Immediate
                             effectiveAddress = -1;
                             break;
                         case 3: // Absolute
-                            effectiveAddress = Memory.address(this.state.args[0], this.state.args[1]);
+                            effectiveAddress = Memory.address(state.args[0], state.args[1]);
                             break;
                         case 4: // (Zero Page),Y
-                            tmp = Memory.address(this.Bus.read(this.state.args[0], true),
-                                          this.Bus.read((this.state.args[0] + 1) & 0xff, true));
-                            effectiveAddress = (tmp + this.state.Y) & 0xffff;
+                            tmp = Memory.address(Bus.read(state.args[0], true),
+                                          Bus.read((state.args[0] + 1) & 0xff, true));
+                            effectiveAddress = (tmp + state.Y) & 0xffff;
                             break;
                         case 5: // Zero Page,X
-                            effectiveAddress = zpxAddress(this.state.args[0]);
+                            effectiveAddress = zpxAddress(state.args[0]);
                             break;
                         case 6: // Absolute, Y
-                            effectiveAddress = yAddress(this.state.args[0], this.state.args[1]);
+                            effectiveAddress = yAddress(state.args[0], state.args[1]);
                             break;
                         case 7: // Absolute, X
-                            effectiveAddress = xAddress(this.state.args[0], this.state.args[1]);
+                            effectiveAddress = xAddress(state.args[0], state.args[1]);
                             break;
                     }
                     break;
             }
-             // Execute
-            switch (this.state.IR)
+            // Execute
+            if(state.IR != 0x0)
+            Log.nf($"IR-Opcode: 0x{state.IR:X2}");
+            switch (state.IR)
             {
 
                 /** Single Byte Instructions; Implied and Relative **/
                 case 0x00: // BRK - Force Interrupt - Implied
-                    debugger?.handleBrk(this.state.PC + 1);
+                    debugger?.handleBrk(state.PC + 1);
                     break;
                 case 0x08: // PHP - Push Processor Status - Implied
                     // Break flag is always set in the stack value.
-                    stack.PushByte(this.state.getStatusFlag());
+                    stack.PushByte(state.getStatusFlag());
                     break;
                 case 0x10: // BPL - Branch if Positive - Relative
                     if (!negativeFlag)
-                    {
-                        this.state.PC = relAddress(this.state.args[0]);
-                    }
-
+                        state.PC = relAddress(state.args[0]);
                     break;
                 case 0x18: // CLC - Clear Carry Flag - Implied
                     carryFlag = false;
                     break;
                 case 0x20: // JSR - Jump to Subroutine - Implied
-                    stack.PushWord(this.state.PC - 1);
-                    this.state.PC = Memory.address(this.state.args[0], this.state.args[1]);
+                    stack.PushWord(state.PC - 1);
+                    state.PC = Memory.address(state.args[0], state.args[1]);
                     break;
                 case 0xfc: // JSR - (Absolute Indexed Indirect,X)
-                    stack.PushWord(this.state.PC - 1);
-                    tmp = (((this.state.args[1] << 8) | this.state.args[0]) + this.state.X) & 0xffff;
-                    this.state.PC = Memory.address(this.Bus.read(tmp, true), this.Bus.read(tmp + 1, true));
+                    stack.PushWord(state.PC - 1);
+                    tmp = (((state.args[1] << 8) | state.args[0]) + state.X) & 0xffff;
+                    state.PC = Memory.address(Bus.read(tmp, true), Bus.read(tmp + 1, true));
                     break;
                 case 0x28: // PLP - Pull Processor Status - Implied
                     ProcessorStatus = (stack.PopByte());
                     break;
                 case 0x30: // BMI - Branch if Minus - Relative
                     if (negativeFlag)
-                    {
-                        this.state.PC = relAddress(this.state.args[0]);
-                    }
-
+                        state.PC = relAddress(state.args[0]);
                     break;
                 case 0x38: // SEC - Set Carry Flag - Implied
                     carryFlag = true;
@@ -316,20 +372,17 @@
                     setProgramCounter(Memory.address(lo, hi));
                     break;
                 case 0x48: // PHA - Push Accumulator - Implied
-                    stack.Push(this.state.A, false);
+                    stack.Push(state.A, false);
                     break;
                 case 0x50: // BVC - Branch if Overflow Clear - Relative
                     if (!overFlowFlag)
-                    {
-                        this.state.PC = relAddress(this.state.args[0]);
-                    }
-
+                        state.PC = relAddress(state.args[0]);
                     break;
                 case 0x58: // CLI - Clear Interrupt Disable - Implied
                     IrqDisableFlag = false;
                     break;
                 case 0x5a: // 65C02 PHY - Push Y to stack
-                    stack.Push(this.state.Y, true);
+                    stack.Push(state.Y, true);
                     break;
                 case 0x60: // RTS - Return from Subroutine - Implied
                     lo = stack.PopByte();
@@ -337,345 +390,312 @@
                     setProgramCounter((Memory.address(lo, hi) + 1) & 0xffff);
                     break;
                 case 0x68: // PLA - Pull Accumulator - Implied
-                    this.state.A = stack.Pop(false);
-                    instructor.setArithmeticFlags(this.state.A, false);
+                    state.A = stack.Pop(false);
+                    instructor.setArithmeticFlags(state.A, false);
                     break;
                 case 0x70: // BVS - Branch if Overflow Set - Relative
                     if (overFlowFlag)
-                    {
-                        this.state.PC = relAddress(this.state.args[0]);
-                    }
-
+                        state.PC = relAddress(state.args[0]);
                     break;
                 case 0x78: // SEI - Set Interrupt Disable - Implied
                     IrqDisableFlag = true;
                     break;
                 case 0x7a: // 65C02 PLY - Pull Y from Stack
-                    this.state.Y = stack.Pop(true);
-                    instructor.setArithmeticFlags(this.state.Y, true);
+                    state.Y = stack.Pop(true);
+                    instructor.setArithmeticFlags(state.Y, true);
                     break;
                 case 0x80: // 65C02 BRA - Branch Always
-                    this.state.PC = relAddress(this.state.args[0]);
+                    state.PC = relAddress(state.args[0]);
                     break;
                 case 0x88: // DEY - Decrement Y Register - Implied
-                    this.state.Y = --this.state.Y & screen.maskXWidth();
-                    instructor.setArithmeticFlags(this.state.Y, true);
+                    state.Y = --state.Y & screen.maskXWidth();
+                    instructor.setArithmeticFlags(state.Y, true);
                     break;
                 case 0x8a: // TXA - Transfer X to Accumulator - Implied
-                    this.state.A = this.state.X;
-                    instructor.setArithmeticFlags(this.state.A, false);
+                    state.A = state.X;
+                    instructor.setArithmeticFlags(state.A, false);
                     break;
                 case 0x90: // BCC - Branch if Carry Clear - Relative
                     if (!carryFlag)
                     {
-                        this.state.PC = relAddress(this.state.args[0]);
+                        state.PC = relAddress(state.args[0]);
                     }
 
                     break;
                 case 0x98: // TYA - Transfer Y to Accumulator - Implied
-                    this.state.A = this.state.Y;
-                    instructor.setArithmeticFlags(this.state.A, false);
+                    state.A = state.Y;
+                    instructor.setArithmeticFlags(state.A, false);
                     break;
                 case 0x9a: // TXS - Transfer X to Stack Pointer - Implied
-                    if (this.state.indexWidthFlag)
-                    {
-                        this.state.SP = (this.state.SP & 0xff00 | (this.state.X & 0xff));
-                        
-                    }
+                    if (state.indexWidthFlag)
+                        state.SP = (state.SP & 0xff00 | (state.X & 0xff));
                     else
-                    {
-                        this.state.SP = (this.state.X);
-                    }
-
+                        state.SP = (state.X);
                     break;
                 case 0xa8: // TAY - Transfer Accumulator to Y - Implied
-                    this.state.Y = this.state.A;
-                    instructor.setArithmeticFlags(this.state.Y, true);
+                    state.Y = state.A;
+                    instructor.setArithmeticFlags(state.Y, true);
                     break;
                 case 0xaa: // TAX - Transfer Accumulator to X - Implied
-                    this.state.X = this.state.A;
-                    instructor.setArithmeticFlags(this.state.X, true);
+                    state.X = state.A;
+                    instructor.setArithmeticFlags(state.X, true);
                     break;
                 case 0x9b: // TXY - Transfer X to Y
-                    this.state.Y = this.state.X;
-                    instructor.setArithmeticFlags(this.state.Y, true);
+                    state.Y = state.X;
+                    instructor.setArithmeticFlags(state.Y, true);
                     break;
                 case 0xbb: // TYX - Transfer Y to X
-                    this.state.X = this.state.Y;
-                    instructor.setArithmeticFlags(this.state.X, true);
+                    state.X = state.Y;
+                    instructor.setArithmeticFlags(state.X, true);
                     break;
                 case 0xb0: // BCS - Branch if Carry Set - Relative
                     if (carryFlag)
-                    {
-                        this.state.PC = relAddress(this.state.args[0]);
-                    }
-
+                        state.PC = relAddress(state.args[0]);
                     break;
                 case 0xb8: // CLV - Clear Overflow Flag - Implied
                     overFlowFlag = false;
                     break;
                 case 0xba: // TSX - Transfer Stack Pointer to X - Implied
-                    this.state.X = this.state.SP;
-                    instructor.setArithmeticFlags(this.state.X, true);
+                    state.X = state.SP;
+                    instructor.setArithmeticFlags(state.X, true);
                     break;
                 case 0xc8: // INY - Increment Y Register - Implied
-                    this.state.Y = ++this.state.Y & screen.maskXWidth();
-                    instructor.setArithmeticFlags(this.state.Y, true);
+                    state.Y = ++state.Y & screen.maskXWidth();
+                    instructor.setArithmeticFlags(state.Y, true);
                     break;
                 case 0xca: // DEX - Decrement X Register - Implied
-                    this.state.X = --this.state.X & screen.maskXWidth();
-                    instructor.setArithmeticFlags(this.state.X, true);
+                    state.X = --state.X & screen.maskXWidth();
+                    instructor.setArithmeticFlags(state.X, true);
                     break;
                 case 0xd0: // BNE - Branch if Not Equal to Zero - Relative
                     if (!zeroFlag)
-                    {
-                        this.state.PC = relAddress(this.state.args[0]);
-                    }
-
+                        state.PC = relAddress(state.args[0]);
                     break;
                 case 0xd8: // CLD - Clear Decimal Mode - Implied
                     DecimalModeFlag = false;
                     break;
                 case 0xda: // 65C02 PHX - Push X to stack
-                    stack.Push(this.state.X, true);
+                    stack.Push(state.X, true);
                     break;
                 case 0xe8: // INX - Increment X Register - Implied
-                    this.state.X = ++this.state.X & screen.maskXWidth();
-                    instructor.setArithmeticFlags(this.state.X, true);
+                    state.X = ++state.X & screen.maskXWidth();
+                    instructor.setArithmeticFlags(state.X, true);
                     break;
                 case 0xea: // NOP
                     // Do nothing.
                     break;
                 case 0xf0: // BEQ - Branch if Equal to Zero - Relative
                     if (zeroFlag)
-                    {
-                        this.state.PC = relAddress(this.state.args[0]);
-                    }
-
+                        state.PC = relAddress(state.args[0]);
                     break;
                 case 0xf8: // SED - Set Decimal Flag - Implied
                     DecimalModeFlag = true;
                     break;
                 case 0xfa: // 65C02 PLX - Pull X from Stack
-                    this.state.X = stack.Pop(true);
-                    instructor.setArithmeticFlags(this.state.X, true);
+                    state.X = stack.Pop(true);
+                    instructor.setArithmeticFlags(state.X, true);
                     break;
-
                 case 0x62: // PER
-                    stack.PushWord(this.state.args[0] + this.state.PC);
+                    stack.PushWord(state.args[0] + state.PC);
                     break;
                 case 0xd4: // PEI
                     stack.PushWord(
-                        this.Bus.read(this.state.args[0], true) | (this.Bus.read(this.state.args[0] + 1, true) << 8));
+                        Bus.read(state.args[0], true) | (Bus.read(state.args[0] + 1, true) << 8));
                     break;
                 case 0xf4: // PEA
-                    stack.PushWord(Memory.address(this.state.args[0], this.state.args[1]));
+                    stack.PushWord(Memory.address(state.args[0], state.args[1]));
                     break;
-
                 case 0xeb: // XBA - Exchange A bytes
-                    if (this.state.mWidthFlag)
+                    if (state.mWidthFlag)
                     {
-                        tmp = this.state.A_TOP >> 8;
-                        this.state.A_TOP = this.state.A << 8;
-                        this.state.A = tmp;
+                        tmp = state.A_TOP >> 8;
+                        state.A_TOP = state.A << 8;
+                        state.A = tmp;
                     }
                     else
-                    {
-                        this.state.A = ((this.state.A & 0xff) << 8) | ((this.state.A >> 8) & 0xff);
-                    }
-
+                        state.A = ((state.A & 0xff) << 8) | ((state.A >> 8) & 0xff);
                     break;
                 case 0xfb: // XCE - Exchange Carry and Emulation flags
-                    bool oldCarry = this.state.carryFlag;
-                    this.state.carryFlag = this.state.emulationFlag;
-                    this.state.emulationFlag = oldCarry;
+                    bool oldCarry = state.carryFlag;
+                    state.carryFlag = state.emulationFlag;
+                    state.emulationFlag = oldCarry;
                     if (oldCarry)
                     {
-                        if (!this.state.mWidthFlag)
-                        {
-                            this.state.A_TOP = this.state.A & 0xff00;
-                        }
-
-                        this.state.mWidthFlag = this.state.indexWidthFlag = true;
-                        this.state.A &= 0xff;
-                        this.state.X &= 0xff;
-                        this.state.Y &= 0xff;
+                        if (!state.mWidthFlag)
+                             state.A_TOP = state.A & 0xff00;
+                        state.mWidthFlag = state.indexWidthFlag = true;
+                        state.A &= 0xff;
+                        state.X &= 0xff;
+                        state.Y &= 0xff;
                     }
-
                     break;
-
                 case 0xc2: // REP - Reset status bits
                     ProcessorStatus = (int)(ProcessorStatus & (state.args[0] ^ 0xffffffff));
                     break;
                 case 0xe2: // SEP - Set status bits
-                    ProcessorStatus = (ProcessorStatus | this.state.args[0]);
+                    ProcessorStatus = (ProcessorStatus | state.args[0]);
                     break;
-
                 case 0xdb: // STP
-                    this.state.signalStop = true;
+                    state.signalStop = true;
                     break;
                 case 0xcb: // WAI
-                    this.state.intWait = true;
+                    state.intWait = true;
                     break;
-
                 case 0xef: // MMU
-                    switch (this.state.args[0])
+                    switch (state.args[0])
                     {
                         case 0x00: // Map device in Reg A to redbus window
-                            this.Bus.RedBus.activeDeviceID = (this.state.A & 0xff);
+                            Bus.RedBus.activeDeviceID = (state.A & 0xff);
                             break;
                         case 0x80: // Get mapped device to A
-                            this.state.A = this.Bus.RedBus.activeDeviceID;
+                            state.A = Bus.RedBus.activeDeviceID;
                             break;
-
                         case 0x01: // Redbus Window offset to A
-                            this.Bus.RedBus.WindowsOffset = (this.state.A);
+                            Bus.RedBus.WindowsOffset = (state.A);
                             break;
                         case 0x81: // Get RB window offset to A
-                            this.state.A = this.Bus.RedBus.WindowsOffset;
-                            if (this.state.mWidthFlag)
+                            state.A = Bus.RedBus.WindowsOffset;
+                            if (state.mWidthFlag)
                             {
-                                this.state.A_TOP = this.state.A & 0xff00;
-                                this.state.A &= 0xff;
+                                state.A_TOP = state.A & 0xff00;
+                                state.A &= 0xff;
                             }
-
                             break;
-
                         case 0x02: // Enable redbus
-                            this.Bus.RedBus.Enable();
+                            Bus.RedBus.Enable();
                             break;
                         case 0x82: // Disable redbus
-                            this.Bus.RedBus.Disable();
+                            Bus.RedBus.Disable();
                             break;
 
                         case 0x03: // Set external memory mapped window to A
-                            this.Bus.RedBus.MemoryWindow = (this.state.A);
+                            Bus.RedBus.MemoryWindow = (state.A);
                             break;
                         case 0x83: // Get memory mapped window to A
-                            this.state.A = this.Bus.RedBus.MemoryWindow;
-                            if (this.state.mWidthFlag)
+                            state.A = Bus.RedBus.MemoryWindow;
+                            if (state.mWidthFlag)
                             {
-                                this.state.A_TOP = this.state.A & 0xff00;
-                                this.state.A &= 0xff;
+                                state.A_TOP = state.A & 0xff00;
+                                state.A &= 0xff;
                             }
 
                             break;
 
                         case 0x04: // Enable external memory mapped window
-                            this.Bus.RedBus.enableWindow = (true);
+                            Bus.RedBus.enableWindow = (true);
                             break;
                         case 0x84: // Disable external memory mapped window
-                            this.Bus.RedBus.enableWindow = (false);
+                            Bus.RedBus.enableWindow = (false);
                             break;
 
                         case 0x05: // Set BRK address to A
-                            this.state.BRK = this.state.A;
+                            state.BRK = state.A;
                             break;
                         case 0x85: // Get BRK address to A
-                            this.state.A = this.state.BRK;
-                            if (this.state.mWidthFlag)
+                            state.A = state.BRK;
+                            if (state.mWidthFlag)
                             {
-                                this.state.A_TOP = this.state.A & 0xff00;
-                                this.state.A &= 0xff;
+                                state.A_TOP = state.A & 0xff00;
+                                state.A &= 0xff;
                             }
 
                             break;
 
                         case 0x06: // Set POR address to A
-                            this.state.POR = this.state.A;
+                            state.POR = state.A;
                             break;
                         case 0x86: // Get POR address to A
-                            this.state.A = this.state.POR;
-                            if (this.state.mWidthFlag)
+                            state.A = state.POR;
+                            if (state.mWidthFlag)
                             {
-                                this.state.A_TOP = this.state.A & 0xff00;
-                                this.state.A &= 0xff;
+                                state.A_TOP = state.A & 0xff00;
+                                state.A &= 0xff;
                             }
 
                             break;
 
                         case 0xff: // Output A register to MC logfile
-                            logCallback?.Invoke($"A:{this.state.A}");
+                            logCallback?.Invoke($"A:{state.A}");
                             break;
                     }
 
                     break;
 
                 case 0x22: // ENT - Enter word, RHI, I=PC+2, PC=(PC)
-                    stack.RPushWord(this.state.I);
-                    this.state.I = this.state.PC + 2;
-                    this.state.PC = readMemory(this.state.PC, false);
+                    stack.RPushWord(state.I);
+                    state.I = state.PC + 2;
+                    state.PC = readMemory(state.PC, false);
                     break;
                 case 0x42: // NXA - Next word into A, A=(I), I=I+1/I=I+2
-                    this.state.A = readMemory(this.state.I, false);
-                    this.state.I += this.state.mWidthFlag ? 1 : 2;
+                    state.A = readMemory(state.I, false);
+                    state.I += state.mWidthFlag ? 1 : 2;
                     break;
                 case 0x02: // NXT - Next word, PC=(I), I=I+2
-                    this.state.PC = readMemory(this.state.I, false);
-                    this.state.I += 2;
+                    state.PC = readMemory(state.I, false);
+                    state.I += 2;
                     break;
                 case 0x8b: // TXR - Transfer X to R
-                    if (this.state.indexWidthFlag)
+                    if (state.indexWidthFlag)
                     {
-                        this.state.R = (this.state.R & 0xff00) | (this.state.X & 0xff);
+                        state.R = (state.R & 0xff00) | (state.X & 0xff);
                     }
                     else
                     {
-                        this.state.R = this.state.X;
+                        state.R = state.X;
                     }
 
-                    instructor.setArithmeticFlags(this.state.R, true);
+                    instructor.setArithmeticFlags(state.R, true);
                     break;
                 case 0xab: // TRX - Transfer R to X
-                    this.state.X = this.state.R;
-                    instructor.setArithmeticFlags(this.state.X, true);
+                    state.X = state.R;
+                    instructor.setArithmeticFlags(state.X, true);
                     break;
                 case 0x5c: // TXI - Transfer X to I
-                    this.state.I = this.state.X;
-                    instructor.setArithmeticFlags(this.state.X, true);
+                    state.I = state.X;
+                    instructor.setArithmeticFlags(state.X, true);
                     break;
                 case 0xdc: // TIX - Transfer I to X
-                    this.state.X = this.state.I;
-                    instructor.setArithmeticFlags(this.state.X, true);
+                    state.X = state.I;
+                    instructor.setArithmeticFlags(state.X, true);
                     break;
                 case 0x4b: // RHA - Push accumulator to R stack
-                    stack.RPush(this.state.A, false);
+                    stack.RPush(state.A, false);
                     break;
                 case 0x6b: // RLA - Pull accumulator from R stack
-                    this.state.A = stack.RPop(false);
-                    instructor.setArithmeticFlags(this.state.A, false);
+                    state.A = stack.RPop(false);
+                    instructor.setArithmeticFlags(state.A, false);
                     break;
                 case 0x1b: // RHX - Push X register to R stack
-                    stack.RPush(this.state.X, true);
+                    stack.RPush(state.X, true);
                     break;
                 case 0x3b: // RLX - Pull X register from R stack
-                    this.state.X = stack.RPop(true);
-                    instructor.setArithmeticFlags(this.state.X, true);
+                    state.X = stack.RPop(true);
+                    instructor.setArithmeticFlags(state.X, true);
                     break;
                 case 0x5b: // RHY - Push Y register to R stack
-                    stack.RPush(this.state.Y, true);
+                    stack.RPush(state.Y, true);
                     break;
                 case 0x7b: // RLY - Pull Y register from R stack
-                    this.state.Y = stack.RPop(true);
-                    instructor.setArithmeticFlags(this.state.Y, true);
+                    state.Y = stack.RPop(true);
+                    instructor.setArithmeticFlags(state.Y, true);
                     break;
                 case 0x0b: // RHI - Push I register to R stack
-                    stack.RPushWord(this.state.I);
+                    stack.RPushWord(state.I);
                     break;
                 case 0x2b: // RLI - Pull I register from R stack
-                    this.state.I = stack.RPopWord();
-                    instructor.setArithmeticFlags(this.state.I, true);
+                    state.I = stack.RPopWord();
+                    instructor.setArithmeticFlags(state.I, true);
                     break;
                 case 0x82: // RER - Push effective relative address to R stack
-                    stack.RPushWord(this.state.PC + this.state.args[0]);
+                    stack.RPushWord(state.PC + state.args[0]);
                     break;
 
                 // Undocumented. See http://bigfootinformatika.hu/65el02/archive/65el02_instructions.txt
                 case 0x44: // REA - push address to R stack
-                    stack.RPushWord(Memory.address(this.state.args[0], this.state.args[1]));
+                    stack.RPushWord(Memory.address(state.args[0], state.args[1]));
                     break;
                 case 0x54: // REI - push indirect zp address to R stack
-                    stack.RPushWord(readWord(this.state.args[0]));
+                    stack.RPushWord(readWord(state.args[0]));
                     break;
 
                 // MUL - Signed multiply A into D:A
@@ -695,59 +715,59 @@
                     break;
 
                 case 0x8f: // ZEA - Zero extend A into D:A
-                    this.state.D = 0;
-                    this.state.A_TOP = 0;
+                    state.D = 0;
+                    state.A_TOP = 0;
 //                this.state.A &= 0xff; // b = 0
                     break;
                 case 0x9f: // SEA - Sign extend A into D:A
-                    this.state.D = (this.state.A & this.screen.negativeMWidth()) == 0 ? 0 : 0xffff;
-                    this.state.A_TOP = (this.state.D & 0xff) << 8;
+                    state.D = (state.A & screen.negativeMWidth()) == 0 ? 0 : 0xffff;
+                    state.A_TOP = (state.D & 0xff) << 8;
 //                this.state.A = ((this.state.D & 0xff) << 8) | (this.state.A & 0xff);
                     break;
                 case 0xaf: // TDA - Transfer D to A
-                    this.state.A = this.state.D & this.screen.maskMWidth();
-                    instructor.setArithmeticFlags(this.state.A, false);
+                    state.A = state.D & screen.maskMWidth();
+                    instructor.setArithmeticFlags(state.A, false);
                     break;
                 case 0xbf: // TAD - Transfer A to D
-                    if (this.state.mWidthFlag)
+                    if (state.mWidthFlag)
                     {
-                        this.state.D = this.state.A_TOP | (this.state.A & 0xff);
+                        state.D = state.A_TOP | (state.A & 0xff);
                     }
                     else
                     {
-                        this.state.D = this.state.A;
+                        state.D = state.A;
                     }
 
-                    instructor.setArithmeticFlags(this.state.A, false);
+                    instructor.setArithmeticFlags(state.A, false);
                     break;
                 case 0xcf: // PLD - Pull D register from stack
-                    this.state.D = stack.Pop(false);
-                    instructor.setArithmeticFlags(this.state.D, false);
+                    state.D = stack.Pop(false);
+                    instructor.setArithmeticFlags(state.D, false);
                     break;
                 case 0xdf: // PHD - Push D register on stack
-                    stack.Push(this.state.D, false);
+                    stack.Push(state.D, false);
                     break;
 
 
 
                 /** JMP *****************************************************************/
                 case 0x4c: // JMP - Absolute
-                    this.state.PC = Memory.address(this.state.args[0], this.state.args[1]);
+                    state.PC = Memory.address(state.args[0], state.args[1]);
                     break;
                 case 0x6c: // JMP - Indirect
-                    lo = Memory.address(this.state.args[0], this.state.args[1]); // Address of low byte
-                    this.state.PC = Memory.address(this.Bus.read(lo, true), this.Bus.read(lo + 1, true));
+                    lo = Memory.address(state.args[0], state.args[1]); // Address of low byte
+                    state.PC = Memory.address(Bus.read(lo, true), Bus.read(lo + 1, true));
                     break;
                 case 0x7c: // 65C02 JMP - (Absolute Indexed Indirect,X)
-                    lo = (((this.state.args[1] << 8) | this.state.args[0]) + this.state.X) & 0xffff;
+                    lo = (((state.args[1] << 8) | state.args[0]) + state.X) & 0xffff;
                     hi = lo + 1;
-                    this.state.PC = Memory.address(this.Bus.read(lo, true), this.Bus.read(hi, true));
+                    state.PC = Memory.address(Bus.read(lo, true), Bus.read(hi, true));
                     break;
 
                 /** ORA - Logical Inclusive Or ******************************************/
                 case 0x09: // #Immediate
-                    this.state.A |= immediateArgs(false);
-                    instructor.setArithmeticFlags(this.state.A, false);
+                    state.A |= immediateArgs(false);
+                    instructor.setArithmeticFlags(state.A, false);
                     break;
                 case 0x12: // 65C02 ORA (ZP)
                 case 0x01: // (Zero Page,X)
@@ -761,15 +781,15 @@
                 case 0x13: // (stk,S),Y
                 case 0x07: // r,R
                 case 0x17: // (r,R),Y
-                    this.state.A |= readMemory(effectiveAddress, false);
-                    instructor.setArithmeticFlags(this.state.A, false);
+                    state.A |= readMemory(effectiveAddress, false);
+                    instructor.setArithmeticFlags(state.A, false);
                     break;
 
 
                 /** ASL - Arithmetic Shift Left *****************************************/
                 case 0x0a: // Accumulator
-                    this.state.A = instructor.asl(this.state.A);
-                    instructor.setArithmeticFlags(this.state.A, false);
+                    state.A = instructor.asl(state.A);
+                    instructor.setArithmeticFlags(state.A, false);
                     break;
                 case 0x06: // Zero Page
                 case 0x0e: // Absolute
@@ -783,23 +803,23 @@
 
                 /** BIT - Bit Test ******************************************************/
                 case 0x89: // 65C02 #Immediate
-                    instructor.setZeroFlag((this.state.A & immediateArgs(false)) == 0);
+                    instructor.setZeroFlag((state.A & immediateArgs(false)) == 0);
                     break;
                 case 0x34: // 65C02 Zero Page,X
                 case 0x24: // Zero Page
                 case 0x2c: // Absolute
                 case 0x3c: // Absolute,X
                     tmp = readMemory(effectiveAddress, false);
-                    instructor.setZeroFlag((this.state.A & tmp) == 0);
-                    instructor.setNegativeFlag((tmp & this.screen.negativeMWidth()) != 0);
-                    instructor.setOverflowFlag((tmp & (this.state.mWidthFlag ? 0x40 : 0x4000)) != 0);
+                    instructor.setZeroFlag((state.A & tmp) == 0);
+                    instructor.setNegativeFlag((tmp & screen.negativeMWidth()) != 0);
+                    instructor.setOverflowFlag((tmp & (state.mWidthFlag ? 0x40 : 0x4000)) != 0);
                     break;
 
 
                 /** AND - Logical AND ***************************************************/
                 case 0x29: // #Immediate
-                    this.state.A &= immediateArgs(false);
-                    instructor.setArithmeticFlags(this.state.A, false);
+                    state.A &= state.args[0];//immediateArgs(false);
+                    instructor.setArithmeticFlags(state.A, true);
                     break;
                 case 0x32: // 65C02 AND (ZP)
                 case 0x21: // (Zero Page,X)
@@ -813,15 +833,15 @@
                 case 0x33: // (stk,S),Y
                 case 0x27: // r,R
                 case 0x37: // (r,R),Y
-                    this.state.A &= readMemory(effectiveAddress, false);
-                    instructor.setArithmeticFlags(this.state.A, false);
+                    state.A &= readMemory(effectiveAddress, false);
+                    instructor.setArithmeticFlags(state.A, false);
                     break;
 
 
                 /** ROL - Rotate Left ***************************************************/
                 case 0x2a: // Accumulator
-                    this.state.A = instructor.rol(this.state.A);
-                    instructor.setArithmeticFlags(this.state.A, false);
+                    state.A = instructor.rol(state.A);
+                    instructor.setArithmeticFlags(state.A, false);
                     break;
                 case 0x26: // Zero Page
                 case 0x2e: // Absolute
@@ -835,8 +855,8 @@
 
                 /** EOR - Exclusive OR **************************************************/
                 case 0x49: // #Immediate
-                    this.state.A ^= immediateArgs(false);
-                    instructor.setArithmeticFlags(this.state.A, false);
+                    state.A ^= immediateArgs(false);
+                    instructor.setArithmeticFlags(state.A, false);
                     break;
                 case 0x52: // 65C02 EOR (ZP)
                 case 0x41: // (Zero Page,X)
@@ -850,15 +870,15 @@
                 case 0x53: // (stk,S),Y
                 case 0x47: // r,R
                 case 0x57: // (r,R),Y
-                    this.state.A ^= readMemory(effectiveAddress, false);
-                    instructor.setArithmeticFlags(this.state.A, false);
+                    state.A ^= readMemory(effectiveAddress, false);
+                    instructor.setArithmeticFlags(state.A, false);
                     break;
 
 
                 /** LSR - Logical Shift Right *******************************************/
                 case 0x4a: // Accumulator
-                    this.state.A = instructor.lsr(this.state.A);
-                    instructor.setArithmeticFlags(this.state.A, false);
+                    state.A = instructor.lsr(state.A);
+                    instructor.setArithmeticFlags(state.A, false);
                     break;
                 case 0x46: // Zero Page
                 case 0x4e: // Absolute
@@ -872,11 +892,11 @@
 
                 /** ADC - Add with Carry ************************************************/
                 case 0x69: // #Immediate
-                    this.state.A = 
-                        this.state.decimalModeFlag ? 
-                            this.instructor.ADCDecimal(
-                                this.state.A, immediateArgs(false)) :
-                            this.instructor.ADC(this.state.A, immediateArgs(false));
+                    state.A = 
+                        state.decimalModeFlag ? 
+                            instructor.ADCDecimal(
+                                state.A, immediateArgs(false)) :
+                            instructor.ADC(state.A, immediateArgs(false));
 
                     break;
                 case 0x72: // 65C02 ADC (ZP)
@@ -891,13 +911,13 @@
                 case 0x73: // (stk,S),Y
                 case 0x67: // r,R
                 case 0x77: // (r,R),Y
-                    if (this.state.decimalModeFlag)
+                    if (state.decimalModeFlag)
                     {
-                        this.state.A = instructor.ADCDecimal(this.state.A, readMemory(effectiveAddress, false));
+                        state.A = instructor.ADCDecimal(state.A, readMemory(effectiveAddress, false));
                     }
                     else
                     {
-                        this.state.A = instructor.ADC(this.state.A, readMemory(effectiveAddress, false));
+                        state.A = instructor.ADC(state.A, readMemory(effectiveAddress, false));
                     }
 
                     break;
@@ -905,8 +925,8 @@
 
                 /** ROR - Rotate Right **************************************************/
                 case 0x6a: // Accumulator
-                    this.state.A = instructor.ror(this.state.A);
-                    instructor.setArithmeticFlags(this.state.A, false);
+                    state.A = instructor.ror(state.A);
+                    instructor.setArithmeticFlags(state.A, false);
                     break;
                 case 0x66: // Zero Page
                 case 0x6e: // Absolute
@@ -931,7 +951,7 @@
                 case 0x93: // (stk,S),Y
                 case 0x87: // r,R
                 case 0x97: // (r,R),Y
-                    writeMemory(effectiveAddress, this.state.A, false);
+                    writeMemory(effectiveAddress, state.A, false);
                     break;
 
 
@@ -939,7 +959,7 @@
                 case 0x84: // Zero Page
                 case 0x8c: // Absolute
                 case 0x94: // Zero Page,X
-                    writeMemory(effectiveAddress, this.state.Y, true);
+                    writeMemory(effectiveAddress, state.Y, true);
                     break;
 
 
@@ -947,7 +967,7 @@
                 case 0x86: // Zero Page
                 case 0x8e: // Absolute
                 case 0x96: // Zero Page,Y
-                    writeMemory(effectiveAddress, this.state.X, true);
+                    writeMemory(effectiveAddress, state.X, true);
                     break;
 
                 /** STZ - 65C02 Store Zero ****************************************************/
@@ -960,36 +980,36 @@
 
                 /** LDY - Load Y Register ***********************************************/
                 case 0xa0: // #Immediate
-                    this.state.Y = immediateArgs(true);
-                    instructor.setArithmeticFlags(this.state.Y, true);
+                    state.Y = immediateArgs(true);
+                    instructor.setArithmeticFlags(state.Y, true);
                     break;
                 case 0xa4: // Zero Page
                 case 0xac: // Absolute
                 case 0xb4: // Zero Page,X
                 case 0xbc: // Absolute,X
-                    this.state.Y = readMemory(effectiveAddress, true);
-                    instructor.setArithmeticFlags(this.state.Y, true);
+                    state.Y = readMemory(effectiveAddress, true);
+                    instructor.setArithmeticFlags(state.Y, true);
                     break;
 
 
                 /** LDX - Load X Register ***********************************************/
                 case 0xa2: // #Immediate
-                    this.state.X = immediateArgs(true);
-                    instructor.setArithmeticFlags(this.state.X, true);
+                    state.X = state.args[0];//immediateArgs(true);
+                    instructor.setArithmeticFlags(state.X, true);
                     break;
                 case 0xa6: // Zero Page
                 case 0xae: // Absolute
                 case 0xb6: // Zero Page,Y
                 case 0xbe: // Absolute,Y
-                    this.state.X = readMemory(effectiveAddress, true);
-                    instructor.setArithmeticFlags(this.state.X, true);
+                    state.X = readMemory(effectiveAddress, true);
+                    instructor.setArithmeticFlags(state.X, true);
                     break;
 
 
                 /** LDA - Load Accumulator **********************************************/
                 case 0xa9: // #Immediate
-                    this.state.A = immediateArgs(false);
-                    instructor.setArithmeticFlags(this.state.A, false);
+                    state.A = immediateArgs(false);
+                    instructor.setArithmeticFlags(state.A, false);
                     break;
                 case 0xb2: // 65C02 LDA (ZP)
                 case 0xa1: // (Zero Page,X)
@@ -1003,24 +1023,24 @@
                 case 0xb3: // (stk,S),Y
                 case 0xa7: // r,R
                 case 0xb7: // (r,R),Y
-                    this.state.A = readMemory(effectiveAddress, false);
-                    instructor.setArithmeticFlags(this.state.A, false);
+                    state.A = Bus.read(effectiveAddress, true);//readMemory(effectiveAddress, false);
+                    instructor.setArithmeticFlags(state.A, true);
                     break;
 
 
                 /** CPY - Compare Y Register ********************************************/
                 case 0xc0: // #Immediate
-                    instructor.cmp(this.state.Y, immediateArgs(true), true);
+                    instructor.cmp(state.Y, immediateArgs(true), true);
                     break;
                 case 0xc4: // Zero Page
                 case 0xcc: // Absolute
-                    instructor.cmp(this.state.Y, readMemory(effectiveAddress, true), true);
+                    instructor.cmp(state.Y, readMemory(effectiveAddress, true), true);
                     break;
 
 
                 /** CMP - Compare Accumulator *******************************************/
                 case 0xc9: // #Immediate
-                    instructor.cmp(this.state.A, immediateArgs(false), false);
+                    instructor.cmp(state.A, immediateArgs(false), false);
                     break;
                 case 0xd2: // 65C02 CMP (ZP)
                 case 0xc1: // (Zero Page,X)
@@ -1034,20 +1054,20 @@
                 case 0xd3: // (stk,S),Y
                 case 0xc7: // r,R
                 case 0xd7: // (r,R),Y
-                    instructor.cmp(this.state.A, readMemory(effectiveAddress, false), false);
+                    instructor.cmp(state.A, readMemory(effectiveAddress, false), false);
                     break;
 
 
                 /** DEC - Decrement Memory **********************************************/
                 case 0x3a: // 65C02 Immediate
-                    this.state.A = --this.state.A & this.screen.maskMWidth();
-                    instructor.setArithmeticFlags(this.state.A, false);
+                    state.A = --state.A & screen.maskMWidth();
+                    instructor.setArithmeticFlags(state.A, false);
                     break;
                 case 0xc6: // Zero Page
                 case 0xce: // Absolute
                 case 0xd6: // Zero Page,X
                 case 0xde: // Absolute,X
-                    tmp = (readMemory(effectiveAddress, false) - 1) & this.screen.maskMWidth();
+                    tmp = (readMemory(effectiveAddress, false) - 1) & screen.maskMWidth();
                     writeMemory(effectiveAddress, tmp, false);
                     instructor.setArithmeticFlags(tmp, false);
                     break;
@@ -1055,23 +1075,23 @@
 
                 /** CPX - Compare X Register ********************************************/
                 case 0xe0: // #Immediate
-                    instructor.cmp(this.state.X, immediateArgs(true), true);
+                    instructor.cmp(state.X, immediateArgs(true), true);
                     break;
                 case 0xe4: // Zero Page
                 case 0xec: // Absolute
-                    instructor.cmp(this.state.X, readMemory(effectiveAddress, true), true);
+                    instructor.cmp(state.X, readMemory(effectiveAddress, true), true);
                     break;
 
 
                 /** SBC - Subtract with Carry (Borrow) **********************************/
                 case 0xe9: // #Immediate
-                    if (this.state.decimalModeFlag)
+                    if (state.decimalModeFlag)
                     {
-                        this.state.A = instructor.sbcDecimal(this.state.A, immediateArgs(false));
+                        state.A = instructor.sbcDecimal(state.A, immediateArgs(false));
                     }
                     else
                     {
-                        this.state.A = instructor.sbc(this.state.A, immediateArgs(false));
+                        state.A = instructor.sbc(state.A, immediateArgs(false));
                     }
 
                     break;
@@ -1086,29 +1106,32 @@
                 case 0xe3: // stk,S
                 case 0xf3: // (stk,S),Y
                 case 0xe7: // r,R
-                case 0xf7: // (r,R),Y
-                    if (this.state.decimalModeFlag)
+                case 0xf7: 
+                    if (state.decimalModeFlag)
                     {
-                        this.state.A = instructor.sbcDecimal(this.state.A, readMemory(effectiveAddress, false));
+                        state.A = instructor.sbcDecimal(state.A, readMemory(effectiveAddress, false));
                     }
                     else
                     {
-                        this.state.A = instructor.sbc(this.state.A, readMemory(effectiveAddress, false));
+                        state.A = instructor.sbc(state.A, readMemory(effectiveAddress, false));
                     }
 
                     break;
-
-
+                //case 0xf7: // 65C02 SMB7 - Zero Page or (r,R),Y
+                //    tmp = Bus.read(effectiveAddress, true) & 0xff;
+                //    tmp |= (1 << 7);
+                //    Bus.write(effectiveAddress, tmp);
+                //    break;
                 /** INC - Increment Memory **********************************************/
                 case 0x1a: // 65C02 Increment Immediate
-                    this.state.A = ++this.state.A & this.screen.maskMWidth();
-                    instructor.setArithmeticFlags(this.state.A, false);
+                    state.A = ++state.A & screen.maskMWidth();
+                    instructor.setArithmeticFlags(state.A, false);
                     break;
                 case 0xe6: // Zero Page
                 case 0xee: // Absolute
                 case 0xf6: // Zero Page,X
                 case 0xfe: // Absolute,X
-                    tmp = (readMemory(effectiveAddress, false) + 1) & this.screen.maskMWidth();
+                    tmp = (readMemory(effectiveAddress, false) + 1) & screen.maskMWidth();
                     writeMemory(effectiveAddress, tmp, false);
                     instructor.setArithmeticFlags(tmp, false);
                     break;
@@ -1117,24 +1140,46 @@
                 case 0x14: // 65C02 TRB - Test and Reset bit - Zero Page
                 case 0x1c: // 65C02 TRB - Test and Reset bit - Absolute
                     tmp = readMemory(effectiveAddress, false);
-                    instructor.setZeroFlag((this.state.A & tmp) == 0);
-                    tmp = (tmp &= ~(this.state.A)) & this.screen.maskMWidth();
+                    instructor.setZeroFlag((state.A & tmp) == 0);
+                    tmp = (tmp &= ~(state.A)) & screen.maskMWidth();
                     writeMemory(effectiveAddress, tmp, false);
                     break;
 
                 case 0x04: // 65C02 TSB - Test and Set bit - Zero Page
                 case 0x0c: // 65C02 TSB - Test and Set bit - Absolute
                     tmp = readMemory(effectiveAddress, false);
-                    instructor.setZeroFlag((this.state.A & tmp) == 0);
-                    tmp = (tmp |= (this.state.A)) & this.screen.maskMWidth();
+                    instructor.setZeroFlag((state.A & tmp) == 0);
+                    tmp = (tmp |= (state.A)) & screen.maskMWidth();
                     writeMemory(effectiveAddress, tmp, false);
                     break;
 
                 /** Unimplemented Instructions ****************************************/
                 default:
-                    this.opTrap = true;
+                    opTrap = true;
                     break;
             }
+            delayLoop(state.IR);
+
+            peekAhead();
+        }
+
+        private void delayLoop(int opcode)
+        {
+            var clockSteps = instructionClocksNmos[0xff & opcode];
+
+            if (clockSteps == 0)
+            {
+                Log.wr($"Opcode {opcode:X2} has clock step of 0!");
+                return;
+            }
+
+            var interval = clockSteps * CLOCK_SPEED["2MHz"];
+            
+            do
+            {
+                CPUSpin.SpinOnce();
+            }
+            while (opBeginTime + interval >= DateTime.Now.Ticks);
 
         }
 
@@ -1142,20 +1187,20 @@
         {
             switch (irAddressMode)
             {
-                case 0: // #Immediate
+                case 0x0: // #Immediate
                     break;
-                case 1: // Zero Page
+                case 0x1: // Zero Page
                     effectiveAddress = state.args[0];
                     break;
-                case 2: // Accumulator - ignored
+                case 0x2: // Accumulator - ignored
                     break;
-                case 3: // Absolute
+                case 0x3: // Absolute
                     effectiveAddress = Memory.address(state.args[0], state.args[1]);
                     break;
-                case 4: // 65C02 (Zero Page)
+                case 0x4: // 65C02 (Zero Page)
                     effectiveAddress = Memory.address(readByte(state.args[0]), readByte((state.args[0] + 1) & 0xff));
                     break;
-                case 5: // Zero Page,X / Zero Page,Y
+                case 0x5: // Zero Page,X / Zero Page,Y
                     if (state.IR == 0x14)
                         effectiveAddress = state.args[0]; // 65C02 TRB Zero Page
                     else if (state.IR == 0x96 || state.IR == 0xb6)
@@ -1163,7 +1208,7 @@
                     else
                         effectiveAddress = zpxAddress(state.args[0]);
                     break;
-                case 7:
+                case 0x7:
                     if (state.IR == 0x9c || state.IR == 0x1c) // 65C02 STZ & TRB Absolute
                         effectiveAddress = Memory.address(state.args[0], state.args[1]);
                     else if (state.IR == 0xbe) // Absolute,X / Absolute,Y
@@ -1208,14 +1253,14 @@
         /// <param name="lowByte"></param>
         /// <param name="hiByte"></param>
         /// <returns></returns>
-        private int xAddress(int lowByte, int hiByte) => (Memory.address(lowByte, hiByte) + this.state.X) & 0xffff;
+        private int xAddress(int lowByte, int hiByte) => (Memory.address(lowByte, hiByte) + state.X) & 0xffff;
         /// <summary>
         /// Given a hi byte and a low byte, return the Absolute,Y offset address.
         /// </summary>
         /// <param name="lowByte"></param>
         /// <param name="hiByte"></param>
         /// <returns></returns>
-        private int yAddress(int lowByte, int hiByte) => (Memory.address(lowByte, hiByte) + this.state.Y) & 0xffff;
+        private int yAddress(int lowByte, int hiByte) => (Memory.address(lowByte, hiByte) + state.Y) & 0xffff;
 
         /// <summary>
         /// Return a formatted string representing the last instruction and
@@ -1276,7 +1321,7 @@
         public void linkDebugger(Debugger deb)
         {
             Log.nf("%% debugger connected.");
-            this.debugger = deb;
+            debugger = deb;
         }
     }
 }
