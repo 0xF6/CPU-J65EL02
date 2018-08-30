@@ -217,11 +217,20 @@
             ou($"rol |> 0x{m:X4} ->> 0x{result}");
             return result;
         }
-        public void setArithmeticFlags(int reg, bool x)
+        public void setArithmeticFlags(int reg, bool? x = null)
         {
-            getState().zeroFlag = (reg == 0);
-            getState().negativeFlag = (reg & (x ? getScreen().negativeXWidth() 
-                                           : getScreen().negativeMWidth())) != 0;
+            if (x == null)
+            {
+                getState().zeroFlag = (reg == 0);
+                getState().negativeFlag = (reg & 0x80) != 0;
+            }
+            else
+            {
+                getState().zeroFlag = (reg == 0);
+                getState().negativeFlag = (reg & (x.Value ? getScreen().negativeXWidth()
+                                               : getScreen().negativeMWidth())) != 0;
+            }
+            
         }
         public void setNegativeFlag(bool negativeFlag) => getState().negativeFlag = negativeFlag;
         public void clearNegativeFlag() => getState().negativeFlag = false;
