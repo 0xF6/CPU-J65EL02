@@ -76,7 +76,7 @@
             this.state.signalStop = true;
             if (e != null)
             {
-                //Console.BackgroundColor = ConsoleColor.White;
+                Console.BackgroundColor = ConsoleColor.White;
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.Clear();
                 Console.CursorVisible = false;
@@ -129,6 +129,27 @@
                    (zeroFlag ? 'Z' : '*') + "-" +
                    (carryFlag ? 'C' : '*') + 
                    "]";
+        }
+        public string getInstructionByteStatus()
+        {
+            switch (instructionSizes[state.IR])
+            {
+                case 0:
+                case 1:
+                    return  $"0x{state.lastPc:X}  " +
+                            $"0x{state.IR:X}      ";
+                case 2:
+                    return  $"0x{state.lastPc:X}  " +
+                            $"0x{state.IR:X} " +
+                            $"0x{state.args[0]:X}   ";
+                case 3:
+                    return $"0x{state.lastPc:X}  " +
+                           $"0x{state.IR:X} " +
+                           $"0x{state.args[0]:X} " +
+                           $"0x{state.args[1]:X}";
+                default:
+                    return null;
+            }
         }
 
         public int ProcessorStatus
@@ -189,7 +210,7 @@
         private int relAddress(int offset)
         {
             // Cast the offset to a signed byte to handle negative offsets
-            return (state.PC + (byte)offset) & 0xffff;
+            return (state.PC + (byte)offset - 1) & 0xffff;
         }
 
         public void setProgramCounter(int addr)
@@ -213,27 +234,36 @@
             opBeginTime = DateTime.Now.Ticks;
             if (state.signalStop) return;
             state.lastPc = state.PC;
+            
 
+            
             // Check for Interrupts before doing anything else.
             // This will set the PC and jump to the interrupt vector.
+
+            //if (state.nmiAsserted)
+            //    debugger?.handleNmi();
+            //else if (state.irqAsserted)
+            //{
+            //    if (!state.intWait && !IrqDisableFlag)
+            //        debugger?.handleIrq(state.PC);
+            //    state.intWait = false;
+            //}
+
             if (state.nmiAsserted)
                 debugger?.handleNmi();
-            else if (state.irqAsserted)
-            {
-                if (!state.intWait && !IrqDisableFlag)
-                    debugger?.handleIrq(state.PC);
-                state.intWait = false;
-            }
+            else if (state.irqAsserted && !IrqDisableFlag)
+                debugger?.handleIrq(state.PC);
+
 
             // Fetch memory location for this instruction.
             state.IR = Bus.read(state.PC, true);
             var irAddressMode = (state.IR >> 2) & 0x07;  // Bits 3-5 of IR:  [ | | |X|X|X| | ]
             var irOpMode = state.IR & 0x03;              // Bits 6-7 of IR:  [ | | | | | |X|X]
-
+            var oldPC = state.PC;
             incrementPC();
             opTrap = false;
-
-
+            if(state.PC == 0x40D)
+            state.PC = 0x0317;
             // Decode the instruction and operands
             state.instSize = state.getInstructionSize(state.IR);
             for (var i = 0; i < state.instSize - 1; i++)
@@ -324,10 +354,13 @@
                             break;
                     }
                     break;
+                default:
+                    Log.er($"unk opmode {(Mode)irOpMode} - {irOpMode} - {irOpMode:X}");
+                    break;
             }
             // Execute
-            if(state.IR != 0x0)
-            Log.nf($"IR-Opcode: 0x{state.IR:X2}");
+            if (state.IR != 0x0) // IR-Opcode: 0x{state.IR:X2}, IR-Mode: {opcodeNames[state.IR]},
+               Log.nf($"{state.ToTraceEvent()} {getProcessorStatusString()}");
             switch (state.IR)
             {
 
@@ -485,8 +518,9 @@
                     // Do nothing.
                     break;
                 case 0xf0: // BEQ - Branch if Equal to Zero - Relative
-                    if (zeroFlag)
-                        state.PC = relAddress(state.args[0]);
+                    //! Fucking zero-based-flag, stops cyclical jump
+                    //if (zeroFlag) 
+                        //state.PC = relAddress(state.args[0]);
                     break;
                 case 0xf8: // SED - Set Decimal Flag - Implied
                     DecimalModeFlag = true;
@@ -819,7 +853,7 @@
                 /** AND - Logical AND ***************************************************/
                 case 0x29: // #Immediate
                     state.A &= state.args[0];//immediateArgs(false);
-                    instructor.setArithmeticFlags(state.A, true);
+                    instructor.setArithmeticFlags(state.A);
                     break;
                 case 0x32: // 65C02 AND (ZP)
                 case 0x21: // (Zero Page,X)
@@ -1023,8 +1057,8 @@
                 case 0xb3: // (stk,S),Y
                 case 0xa7: // r,R
                 case 0xb7: // (r,R),Y
-                    state.A = Bus.read(effectiveAddress, true);//readMemory(effectiveAddress, false);
-                    instructor.setArithmeticFlags(state.A, true);
+                    state.A = Bus.read(effectiveAddress, false);//readMemory(effectiveAddress, false);
+                    instructor.setArithmeticFlags(state.A);
                     break;
 
 
