@@ -38,12 +38,20 @@ A C# implementation of the 65el02 CPU.
         Select(REG_SELECT) = 0x0 write-olny
         Write (REG_RW)     = 0x1 out and in
  - Bus:
-    AddRess: at 0xFFFFFFFF to 0xFFFFFFFF (no fixed address for the classic-bus)
+    Address: at 0xFFFFFFFF to 0xFFFFFFFF (no fixed address for the classic-bus)
     Capacity: 0x10 (default)
  - RedBus:
     Address: at 0xFFFFFFFF to 0xFFFFFFFF (no fixed address for the redbus)
     Peripheral:
       Capacity: 0x100 (hardcode)
+ - Wireless Display:
+    Address: at 0x11000 to 0x11006
+    Registers:
+        Init        (REGINIT) = 0x0 write-only
+        Connect     (REGCON)  = 0x1 write-olny
+        WriteChar   (REGWR)   = 0x2 write-olny
+        Status      (REGST)   = 0x2 readonly
+        PhysPort    (PHPRT)   = 0x3 readonly
 ```
 
 #### Support Instructions   
