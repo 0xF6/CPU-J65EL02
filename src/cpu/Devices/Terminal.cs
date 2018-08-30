@@ -12,9 +12,7 @@
         public const int REGCON = 0x1;
         public const int REGWR = 0x2;
 
-        public WirelessTerminal(int startAddress, CPU cp) : base(startAddress, startAddress + 6, cp)
-        {
-        }
+        public WirelessTerminal(int startAddress, CPU cp) : base(startAddress, startAddress + 6, cp)  { }
 
         public override void write(int address, int data)
         {
@@ -41,10 +39,10 @@
         {
             try
             {
-                var result = conn_str.AppendPathSegment("status").GetJsonAsync().Result;
+                conn_str.AppendPathSegment("status").GetJsonAsync().Wait();
                 status = 0x2;
             }
-            catch (Exception)
+            catch
             {
                 throw new CorruptedMemoryException("Invalid driver data.", this);
             }
@@ -72,11 +70,10 @@
                 case 0x2: return status;
                 case 0x3: return getPhysicalPort();
             }
-
             return -0x1;
         }
 
-        public override string getPhysicalAddress() => "localhost";
+        public override string getPhysicalAddress() => "http://localhost";
 
         public override int getPhysicalPort() => 8666;
 
