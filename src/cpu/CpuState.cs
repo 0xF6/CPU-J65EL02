@@ -28,7 +28,15 @@
         /// <summary>
         /// Program Counter
         /// </summary>
-        public int PC { get; set; }
+        public int PC { get => pcc;
+            set
+            {
+               
+                pcc = value;
+            }
+        }
+
+        private int pcc;
         /// <summary>
         /// Last Loaded Instruction Register
         /// </summary>
@@ -125,11 +133,11 @@
             {
                 case 0:
                 case 1:
-                    return $"{lastPc:X4} {IR:X2}";
+                    return $"{lastPc:X4} {IR:X2}        ";
                 case 2:
-                    return $"{lastPc:X4} {IR:X2} {args[0]:X2}";
+                    return $"{lastPc:X4} {IR:X2} {args[0]:X2}     ";
                 case 3:
-                    return $"{lastPc:X4} {IR:X2} {args[0]:X2} {args[1]:X2}";
+                    return $"{lastPc:X4} {IR:X2} {args[0]:X2} {args[1]:X2}  ";
                 default:
                     return "???";
             }
@@ -137,11 +145,11 @@
         public string ToTraceEvent()
         {
             var opcode = CPU.disassembleOp(IR, args, getInstructionSize(IR));
-            var a1 = $"{getInstructionByteStatus()}\n;";
-            a1 +=$"{opcode.Substring(0, 3).ToLower()} ;";
-            a1 +=$"A:0x{A:X4} B:0x{(A_TOP >> 8):X4} X:0x{X:X4} Y:0x{Y:X4} I:0x{I:X4} D:0x{D:X4} ";
-            a1 +=$"F:0x{getStatusFlag():X2} ";
-            a1 +=$"S:0x{SP:X4} R:0x{R:X4}";
+            var a1 = $"{getInstructionByteStatus()}";
+            a1 +=$" {IR:X} {opcode.Substring(0, 3).ToUpper()} ";
+            a1 +=$"A:0x{A:X2} B:0x{(A_TOP >> 8):X} X:0x{X:X} Y:0x{Y:X} I:0x{I:X} D:0x{D:X} ";
+            a1 +=$"F:0x{getStatusFlag():X} ";
+            a1 +=$"S:0x{SP:X} R:0x{R:X}";
             return a1;
         }
         public int getStatusFlag()
