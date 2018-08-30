@@ -26,7 +26,6 @@
         public bool zeroFlag
         {
             get => state.zeroFlag;
-            set => state.zeroFlag = value;
         }
         public bool IrqDisableFlag
         {
@@ -158,7 +157,7 @@
             set
             {
                 carryFlag = (value & P_CARRY) != 0;
-                zeroFlag = (value & P_ZERO) != 0;
+                instructor.setZeroFlag((value & P_ZERO) != 0);;
                 IrqDisableFlag = (value & P_IRQ_DISABLE) != 0;
                 DecimalModeFlag = (value & P_DECIMAL) != 0;
                 
@@ -210,7 +209,7 @@
         private int relAddress(int offset)
         {
             // Cast the offset to a signed byte to handle negative offsets
-            return (state.PC + (byte)offset - 1) & 0xffff;
+            return (state.PC + (byte)offset) & 0xffff;
         }
 
         public void setProgramCounter(int addr)
@@ -520,7 +519,7 @@
                 case 0xf0: // BEQ - Branch if Equal to Zero - Relative
                     //! Fucking zero-based-flag, stops cyclical jump
                     //if (zeroFlag) 
-                        //state.PC = relAddress(state.args[0]);
+                    //    state.PC = relAddress(state.args[0] - 10);
                     break;
                 case 0xf8: // SED - Set Decimal Flag - Implied
                     DecimalModeFlag = true;
@@ -1057,7 +1056,11 @@
                 case 0xb3: // (stk,S),Y
                 case 0xa7: // r,R
                 case 0xb7: // (r,R),Y
-                    state.A = Bus.read(effectiveAddress, false);//readMemory(effectiveAddress, false);
+                    state.A = Bus.read(effectiveAddress, true);//readMemory(effectiveAddress, false);
+                    if (state.A == 0x0)
+                    {
+                        Log.er($"effAdr: 0x{effectiveAddress:X}");
+                    }
                     instructor.setArithmeticFlags(state.A);
                     break;
 

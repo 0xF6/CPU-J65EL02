@@ -28,15 +28,7 @@
         /// <summary>
         /// Program Counter
         /// </summary>
-        public int PC { get => pcc;
-            set
-            {
-               
-                pcc = value;
-            }
-        }
-
-        private int pcc;
+        public int PC { get; set; }
         /// <summary>
         /// Last Loaded Instruction Register
         /// </summary>
