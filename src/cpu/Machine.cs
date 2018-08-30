@@ -58,7 +58,7 @@
                 //bus.AddDevice(new Acia6850(0x8800, cpu));
                 bus.AddDevice(new Acia6551(0x8800, cpu));
                 bus.AddDevice(new CRTC(0x9000, cpu, ram));
-                bus.AddDevice(new WIFICard(0x10000, cpu));
+                //bus.AddDevice(new WIFICard(0x10000, cpu));
                 bus.AddDevice(new WirelessTerminal(0x11000, cpu));
                 
             }
@@ -68,19 +68,39 @@
             }
             reset();
             coldUpCPU();
+            try
+            {
+                coldUpDevices();
+            }
+            catch (Exception e)
+            {
+                cpu.Hault(e);
+            }
             //warmUpCPU();
         }
 
         public void coldUpCPU()
         {
-            //cpu.state.POR = 0x2000;
-            //cpu.state.BRK = 0x2000;
-            //cpu.state.SP = 0x200;
+            cpu.state.POR = 0x2000;
+            cpu.state.BRK = 0x2000;
+            cpu.state.SP = 0x200;
             cpu.state.PC = 0x0300;
-            //cpu.state.R = 0x300;
+            cpu.state.R = 0x300;
 
             //cpu.state.emulationFlag = true;
             //cpu.state.decimalModeFlag = true;
+        }
+
+        public void coldUpDevices()
+        {
+            // 0x11000 - start address of wireless display
+            if(bus.read(0x11003, true) == 0)
+                throw new CorruptedMemoryException("invalid state", bus.findDevice(0x11000));
+            if(bus.read(0x11002, true) == 0x0)
+                bus.write(0x11000, 0x0);
+            if(bus.read(0x11002, true) != 0x1)
+                throw new CorruptedMemoryException("invalid state", bus.findDevice(0x11000));
+            bus.write(0x11001, 0x0);
         }
         public void warmUpCPU()
         {
@@ -95,7 +115,16 @@
             this.isRunning = true;
             do
             {
-                step();
+                try
+                {
+                    step();
+                }
+                catch (Exception e)
+                {
+                    cpu.Hault(e);
+                    this.isRunning = false;
+                    break;
+                }
             } while (this.isRunning);
         }
         public void reset()
@@ -112,37 +141,22 @@
 
         public void step()
         {
-            try
-            {
-                this.cpu.cycle();
-            }
-            catch (Exception e)
-            {
-                this.cpu.Hault(e);
-            }
+            this.cpu.cycle();
 
-            try
-            {
-                this.bus.update();
-            }
-            catch (Exception e)
-            {
-                this.cpu.Hault(e);
-            }
-            var dev = bus.findDevice(0x8800);
+            this.bus.update();
+            var virtualTerm = bus.findDevice(0x8800);
+            var wirelessTerm = bus.findDevice(0x11000);
             // Read from the ACIA and immediately update the console if there's
             // output ready.
-            if (dev is ACIA acia && acia.hasTxChar())
-                Console.Write((char)acia.txRead(true));
+            if (virtualTerm is ACIA acia && acia.hasTxChar() && wirelessTerm is WirelessTerminal term)
+                term.write(0x2, acia.txRead(true));
             if (this.cpu.state.signalStop)
             {
                 this.stop();
                 return;
             }
             if (this.cpu.state.intWait)
-            {
                 this.cpu.state.irqAsserted = true;
-            }
         }
     }
 }
