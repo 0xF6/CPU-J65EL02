@@ -1,0 +1,18 @@
+{
+  "name": "dasm-cli",
+  "version": "0.0.0",
+  "description": "dasm compiler cli",
+  "main": "./app/index.js",
+  "author": "Yuuki Wesp",
+  "license": "MIT",
+  "private": true,
+  "dependencies": {
+    "commander": "^2.18.0",
+    "dasm": "^5.0.1",
+    "exists-file": "^3.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "^10.9.4",
+    "typescript": "^3.0.3"
+  }
+}

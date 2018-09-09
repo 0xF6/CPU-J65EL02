@@ -1,0 +1,26 @@
+{
+    "compilerOptions": {
+        "emitDecoratorMetadata": true,
+        "experimentalDecorators": true,
+        "target": "es6",
+        "lib": [
+            "es5",
+            "es6"
+        ],
+        "module": "commonjs",
+        "removeComments": false,
+        "sourceMap": true,
+        "outDir": "app/",
+        "declaration": true,
+        "moduleResolution": "node"
+    },
+    "filesGlob": [
+        "./src/**/*.ts",
+        "!node_modules/**/*"
+    ],
+    "exclude": [
+        "node_modules",
+        "app"
+    ],
+    "compileOnSave": true
+}
