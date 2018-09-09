@@ -20,4 +20,5 @@ xterm.resize(80, 65);
 (xterm as any).winptyCompatInit();
 xterm.setOption("termName", "vts100");
 enableLigatures(xterm);
-xterm.writeln("Screen J65EL02 - 2018 (C) Yuuki Wesp -->");
+xterm.writeln("\x1B[1;3;31mVirtual Screen J65EL02 - 2018 (C) Yuuki Wesp\x1B[0m ");
+xterm.writeln("");

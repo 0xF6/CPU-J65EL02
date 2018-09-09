@@ -102,14 +102,6 @@
                 throw new CorruptedMemoryException("invalid state", bus.findDevice(0x11000));
             bus.write(0x11001, 0x0);
         }
-        public void warmUpCPU()
-        {
-            //cpu.state.POR   = 0x2000;
-            //cpu.state.BRK   = 0x2000;
-            //cpu.state.SP    = 0x200;
-            //cpu.state.PC    = 0x400;
-            //cpu.state.R     = 0x300;
-        }
         public void run()
         {
             this.isRunning = true;

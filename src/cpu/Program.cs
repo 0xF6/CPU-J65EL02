@@ -1,7 +1,6 @@
 ﻿namespace vm
 {
     using System;
-    using System.Text;
     using System.Threading;
     using RC.Framework.Screens;
 
@@ -16,7 +15,7 @@
             
             new Thread((() =>
             {
-                new Machine(@".\..\..\..\hello.bin", @".\..\..\..\hello_world.bin" , 0x20000).run();
+                new Machine(@".\bootloader.elf", null , 0x20000).run();
             })).Start();
             Console.ReadLine();
         }
