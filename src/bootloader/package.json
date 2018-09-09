@@ -1,0 +1,14 @@
+{
+  "name": "bootloader",
+  "version": "0.0.0",
+  "description": "Bootloader for 6502",
+  "main": "index.js",
+  "author": "Yuuki Wesp",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "assembly" : "make all",
+    "build": "yarn clear; yarn assembly",
+    "clear": "rm -f *.o *.elf *.map *.lst"
+  }
+}

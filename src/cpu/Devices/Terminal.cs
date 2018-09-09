@@ -1,6 +1,5 @@
 ﻿namespace vm.devices
 {
-    using System;
     using cpu;
     using exceptions;
     using Flurl;

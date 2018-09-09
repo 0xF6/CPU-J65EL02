@@ -50,16 +50,16 @@
                 cpu.linkDebugger(deb);
 
                 var ram = new Memory(0x0000, coreRamSize - 1, cpu);
-                //if (bootloader != null)
-                    //ram.loadFromFile(bootloader, 0x400, 0x100, "bootloader");
+                if (bootloader != null)
+                    ram.loadFromFile(bootloader, 0x0300, 0x52, "bootloader");
                 if (os != null)
-                    ram.loadFromFile(os, 0x0300, 0x34, "os");
+                    ram.loadFromFile(os, 0x0300, 0x52, "os");
                 bus.AddDevice(ram);
                 //bus.AddDevice(new Acia6850(0x8800, cpu));
                 bus.AddDevice(new Acia6551(0x8800, cpu));
                 bus.AddDevice(new CRTC(0x9000, cpu, ram));
                 //bus.AddDevice(new WIFICard(0x10000, cpu));
-                bus.AddDevice(new WirelessTerminal(0x11000, cpu));
+                bus.AddDevice(new WirelessTerminal(0x9500, cpu));
                 
             }
             catch (IOException e)
@@ -70,7 +70,7 @@
             coldUpCPU();
             try
             {
-                coldUpDevices();
+                //coldUpDevices();
             }
             catch (Exception e)
             {
@@ -93,14 +93,14 @@
 
         public void coldUpDevices()
         {
-            // 0x11000 - start address of wireless display
-            if(bus.read(0x11003, true) == 0)
+            // 0x9500 - start address of wireless display
+            if(bus.read(0x9503, true) == 0)
                 throw new CorruptedMemoryException("invalid state", bus.findDevice(0x11000));
-            if(bus.read(0x11002, true) == 0x0)
-                bus.write(0x11000, 0x0);
-            if(bus.read(0x11002, true) != 0x1)
+            if(bus.read(0x9502, true) == 0x0)
+                bus.write(0x9500, 0x0);
+            if(bus.read(0x9502, true) != 0x1)
                 throw new CorruptedMemoryException("invalid state", bus.findDevice(0x11000));
-            bus.write(0x11001, 0x0);
+            bus.write(0x9501, 0x0);
         }
         public void run()
         {
