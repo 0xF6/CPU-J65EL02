@@ -8,6 +8,7 @@
     <AssemblyName>cpu_host</AssemblyName>
     <RootNamespace>vm</RootNamespace>
     <StartupObject>vm.Program</StartupObject>
+    <LangVersion>7.1</LangVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
     <DefineConstants>TRACE;RELEASE;</DefineConstants>
@@ -19,6 +20,9 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
+  <ItemGroup>
+    <None Remove="cpu.csproj.DotSettings" />
+  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Flurl" Version="2.8.0" />
     <PackageReference Include="Flurl.Http" Version="2.3.2" />

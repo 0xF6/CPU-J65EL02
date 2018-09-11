@@ -2,15 +2,18 @@
 {
     using System;
     using System.Drawing;
+    using System.Linq;
     using cpu;
     using cpu.tables;
 
     public class ClockSpeed
     {
+        public string Value { get; private set; } = "0Hz";
         public int this [string value]
         {
             get
             {
+                Value = value;
                 switch (value)
                 {
                     case "90Hz": return 8000;
@@ -28,6 +31,8 @@
                 return 0;
             }
         }
+
+        public override string ToString() => Value;
     }
     public abstract class MonoCore : RegisterTable
     {
@@ -87,11 +92,36 @@
 
             peekAhead();
         }
+        
+        public string getInstructionByteStatus()
+        {
+            switch (instructionSizes[state.IR])
+            {
+                case 0:
+                case 1:
+                    return $"0x{state.lastPc:X}  " +
+                            $"0x{state.IR:X}      ";
+                case 2:
+                    return $"0x{state.lastPc:X}  " +
+                            $"0x{state.IR:X} " +
+                            $"0x{state.args[0]:X}   ";
+                case 3:
+                    return $"0x{state.lastPc:X}  " +
+                           $"0x{state.IR:X} " +
+                           $"0x{state.args[0]:X} " +
+                           $"0x{state.args[1]:X}";
+                default:
+                    return null;
+            }
+        }
+
+
+        
+
 
         protected void peekAhead()
         {
             state.nextIr = Bus.read(state.PC, true);
-            //Log.wr($"peekAhead $0x{state.PC:X4}->PC $0x{state.nextIr:X4}->IR", "CPU".To(Color.GreenYellow));
             var nextInstSize = state.getInstructionSize(state.nextIr);
             for (var i = 1; i < nextInstSize; i++)
             {

@@ -3,6 +3,7 @@
     using System.Drawing;
     using cpu;
     using cpu.tables;
+    using exceptions;
     using RC.Framework.Screens;
 
     public class Debugger : Component
@@ -57,6 +58,9 @@
             // Load interrupt vector address into PC
             //state.PC = isBreak ? state.BRK : readWord(vector);
             getState().PC = Memory.address(getBus().read(vectorLow, true), getBus().read(vectorHigh, true));
+
+            if(getState().PC == ushort.MaxValue)
+                throw new BiosException("Divide by zero Exception", "YOU JUST CREATED A BLACK HOLE!");
         }
         public void handleBrk(int returnPc)
         {
