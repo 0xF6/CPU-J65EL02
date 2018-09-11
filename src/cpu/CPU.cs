@@ -5,10 +5,11 @@
     using System.Text;
     using System.Threading;
     using components;
+    using extensions;
     using tables;
     using Screen = devices.Screen;
 
-    public class CPU : MemoryTable
+    public class CPU : MemoryTable, IDisposable
     {
         public SpinWait CPUSpin = new SpinWait();
         public Screen screen { get; set; }
@@ -70,85 +71,7 @@
         public int CarryBit => state.carryFlag ? 1 : 0;
         #endregion
 
-        public void Hault(Exception e)
-        {
-            this.state.signalStop = true;
-            if (e != null)
-            {
-                Console.BackgroundColor = ConsoleColor.White;
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.Clear();
-                Console.CursorVisible = false;
-
-                Console.WriteLine("\n");
-                Console.WriteLine("\t========  ========  ========  ========  |");
-                Console.WriteLine("\t=      =  =      =  =      =  =         |");
-                Console.WriteLine("\t=      =  =      =  =      =  =         |");
-                Console.WriteLine("\t=      =  =      =  ========  ========  |");
-                Console.WriteLine("\t=      =  =      =  =                =  |");
-                Console.WriteLine("\t=      =  =      =  =                =   ");
-                Console.WriteLine("\t========  ========  =         ========  *");
-                Console.WriteLine("\n");
-
-                var msg = e.GetType()
-                    .Name
-                    .Select(x => char.IsUpper(x) ? $" {x}" : x.ToString())
-                    .ToArray();
-
-                var msg2 = string.Join("", msg).ToLower();
-                Console.WriteLine($"\t{msg2} at $0x{state.lastMemory:X8}");
-                Console.WriteLine($"  {e.Message}");
-                Console.WriteLine("\n");
-                Console.WriteLine("\tCPUState:");
-                Console.WriteLine($"\t\tA: 0x{this.state.A:X4}; AT: 0x{this.state.A_TOP:X4}; R: 0x{this.state.R:X4};");
-                Console.WriteLine($"\t\tD: 0x{this.state.D:X4}; IR: 0x{this.state.IR:X4}; X: 0x{this.state.X:X4};");
-                Console.WriteLine($"\t\tS: 0x{this.state.SP:X4}; PC: 0x{this.state.PC:X4}; Y: 0x{this.state.Y:X4};");
-                var flags = getProcessorStatusString();
-                Console.WriteLine($"\t\t{flags}");
-                Console.WriteLine("\tDevices:");
-                Console.WriteLine($"\t\t{string.Join(", \n\t\t",Bus.devices.Select(x => x.ToString()).ToArray())}");
-                Console.WriteLine("\n");
-                Console.WriteLine("\t\t\t\tPress the 'RESET'-button on restart u'r controller.");
-
-            }
-            else
-            {
-                Log.ft("HAULT CPU");
-            }
-        }
-
-        public string getProcessorStatusString()
-        {
-            return "[" + (negativeFlag ? 'N' : '*') + "-" +
-                   (this.state.overflowFlag ? 'V' : '*') + "-" +
-                   (this.state.breakFlag ? 'B' : '*') + "-" +
-                   (this.state.decimalModeFlag ? 'D' : '*') + "-" +
-                   (this.state.irqDisableFlag ? 'I' : '*') + "-" +
-                   (zeroFlag ? 'Z' : '*') + "-" +
-                   (carryFlag ? 'C' : '*') + 
-                   "]";
-        }
-        public string getInstructionByteStatus()
-        {
-            switch (instructionSizes[state.IR])
-            {
-                case 0:
-                case 1:
-                    return  $"0x{state.lastPc:X}  " +
-                            $"0x{state.IR:X}      ";
-                case 2:
-                    return  $"0x{state.lastPc:X}  " +
-                            $"0x{state.IR:X} " +
-                            $"0x{state.args[0]:X}   ";
-                case 3:
-                    return $"0x{state.lastPc:X}  " +
-                           $"0x{state.IR:X} " +
-                           $"0x{state.args[0]:X} " +
-                           $"0x{state.args[1]:X}";
-                default:
-                    return null;
-            }
-        }
+        
 
         public int ProcessorStatus
         {
@@ -260,8 +183,8 @@
             var oldPC = state.PC;
             incrementPC();
             opTrap = false;
-            if(state.PC == 0x40D)
-            state.PC = 0x0317;
+            //if(state.PC == 0x40D)
+            //state.PC = 0x0317;
             // Decode the instruction and operands
             state.instSize = state.getInstructionSize(state.IR);
             for (var i = 0; i < state.instSize - 1; i++)
@@ -358,7 +281,7 @@
             }
             // Execute
             if (state.IR != 0x0) // IR-Opcode: 0x{state.IR:X2}, IR-Mode: {opcodeNames[state.IR]},
-               Log.nf($"{state.ToTraceEvent()} {getProcessorStatusString()}");
+               Log.nf($"{state.ToTraceEvent()} {this.getProcessorStatusString()}");
             switch (state.IR)
             {
 
@@ -517,8 +440,8 @@
                     break;
                 case 0xf0: // BEQ - Branch if Equal to Zero - Relative
                     //! Fucking zero-based-flag, stops cyclical jump
-                    //if (zeroFlag) 
-                    //    state.PC = relAddress(state.args[0] - 10);
+                    if (zeroFlag) 
+                        state.PC = relAddress(state.args[0] - 10);
                     break;
                 case 0xf8: // SED - Set Decimal Flag - Implied
                     DecimalModeFlag = true;
@@ -1358,6 +1281,15 @@
         {
             Log.nf("%% debugger connected.");
             debugger = deb;
+        }
+
+        public void Dispose()
+        {
+            this.CPUSpin.Reset();
+            this.CPUSpin = default;
+            this.debugger = null;
+            this.instructor = null;
+            this.screen = null;
         }
     }
 }
