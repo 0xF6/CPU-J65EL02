@@ -12,7 +12,6 @@
     "clear": "rm -f *.o *.elf *.map *.lst"
   },
   "dependencies": {
-    "commander": "^2.18.0",
-    "dasm": "^5.0.1"
+    "dasm-cli": "C:\\Git\\CPU-J65EL02\\src\\dasm-cli"
   }
 }

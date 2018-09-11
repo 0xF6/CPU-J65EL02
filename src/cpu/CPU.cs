@@ -90,12 +90,11 @@
                 Console.WriteLine("\t========  ========  =         ========  *");
                 Console.WriteLine("\n");
 
-                var msg = e.GetType().Name.Select(x =>
-                {
-                    if (char.IsUpper(x))
-                        return $" {x}";
-                    return x.ToString();
-                }).ToArray();
+                var msg = e.GetType()
+                    .Name
+                    .Select(x => char.IsUpper(x) ? $" {x}" : x.ToString())
+                    .ToArray();
+
                 var msg2 = string.Join("", msg).ToLower();
                 Console.WriteLine($"\t{msg2} at $0x{state.lastMemory:X8}");
                 Console.WriteLine($"  {e.Message}");
