@@ -2,10 +2,9 @@
 ; set processor type
         processor 6502
 ; set input point
-        org $0300 
+        org $0299 ; at dasm compiler, need set start point at 0x0299 
 
-;; declare variables
-string .byte "Reei gaaay ", 0
+
 ;; <> - io driver
 iobase   = $8800
 iostatus = iobase + 1
@@ -23,21 +22,24 @@ START
         LDA $1a
         STA ioctrl
         LDA $00
-        STA iowrldev
+        STA iowrldev ; warm up device
         LDA $00
-        STA iowrlreg
+        STA iowrlreg ; load cnnection shell
 
 INIT
         LDX $00
 LOOP
-        LDA iostatus
+        LDA iostatus 
         AND $10
-        BEQ LOOP      
+        BEQ LOOP      ; await status - LOADED
         LDA iowrlsta
         AND $02
         BEQ LOOP   
-        LDA string,x 
+        LDA string,x ; write char at index
         BEQ INIT      
         STA iobase 
         INX          
         JMP LOOP  
+
+;; declare variables
+string .byte "Elis gaaay ", 0
