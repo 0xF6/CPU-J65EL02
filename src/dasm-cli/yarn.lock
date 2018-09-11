@@ -33,6 +33,10 @@ inherits@2.0.3:
   version "2.0.3"
   resolved "https://registry.yarnpkg.com/inherits/-/inherits-2.0.3.tgz#633c2c83e3da42a502f52466022480f4208261de"
 
+linqable.ts@^1.7.15-0:
+  version "1.7.15-0"
+  resolved "https://registry.yarnpkg.com/linqable.ts/-/linqable.ts-1.7.15-0.tgz#4fed826b8e66b62517061b159ef5994677ead688"
+
 mimic-fn@~1.1.0:
   version "1.1.0"
   resolved "https://registry.yarnpkg.com/mimic-fn/-/mimic-fn-1.1.0.tgz#e667783d92e89dbd342818b5230b9d62a672ad18"
