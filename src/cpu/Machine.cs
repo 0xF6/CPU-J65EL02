@@ -6,18 +6,17 @@
     using cpu;
     using devices;
     using exceptions;
+    using extensions;
 
     public class Machine
     {
         private bool isRunning = false;
 
-        private readonly Bus bus;
-        private readonly CPU cpu;
-        private readonly RedBus redBus;
-
-        private int defaultDriveId = 2;
-        private int defaultMonitorId = 1;
-
+        private Bus bus;
+        private CPU cpu;
+        private RedBus redBus;
+        private Bios bios;
+        
         /// <summary>
         /// Constructs the machine with and empty 8k of memory.
         /// </summary>
@@ -40,7 +39,7 @@
         {
             try
             {
-                Log.nf("bios loaded");
+                bios = new Bios(this, 0x0100, "PGX");
                 cpu = new CPU();
                 redBus = new RedBus(cpu);
                 bus = new Bus(redBus);
@@ -51,41 +50,45 @@
 
                 var ram = new Memory(0x0000, coreRamSize - 1, cpu);
                 if (bootloader != null)
-                    ram.loadFromFile(bootloader, 0x0300, 0x52, "bootloader");
+                    ram.loadFromFile(bootloader, 0x0300, 0x3F, "bootloader");
                 if (os != null)
-                    ram.loadFromFile(os, 0x0300, 0x52, "os");
+                    ram.loadFromFile(os, 0x0300, 0x3F, "os");
                 bus.AddDevice(ram);
-                //bus.AddDevice(new Acia6850(0x8800, cpu));
+                //bus.AddDevice(new Acia6850(0x8800, cpu)); // invalid instruction page
                 bus.AddDevice(new Acia6551(0x8800, cpu));
                 bus.AddDevice(new CRTC(0x9000, cpu, ram));
-                //bus.AddDevice(new WIFICard(0x10000, cpu));
-                bus.AddDevice(new WirelessTerminal(0x9500, cpu));
+                //bus.AddDevice(new WIFICard(0x10000, cpu)); // wtf, hault on divide by zero
+                bus.AddDevice(new WirelessTerminal(0x9500, cpu)); // in address 0x10k, wsod on register overflow
                 
-            }
-            catch (IOException e)
-            {
-                throw new RuntimeException("runtime exception in current machine.", e);
-            }
-            reset();
-            coldUpCPU();
-            try
-            {
-                //coldUpDevices();
             }
             catch (Exception e)
             {
                 cpu.Hault(e);
+                Down();
             }
-            //warmUpCPU();
+            reset();
+            coldUpCPU();
+        }
+
+        public void Down()
+        {
+            //56mb
+            this.cpu.Dispose();
+            this.bios = null;
+            this.redBus = null;
+            this.bus = null;
+            this.cpu = null;
+            GC.Collect();
+            //55mb (-2.3kb)
         }
 
         public void coldUpCPU()
         {
-            cpu.state.POR = 0x2000;
-            cpu.state.BRK = 0x2000;
-            cpu.state.SP = 0x200;
+            //cpu.state.POR = 0x2000;
+            //cpu.state.BRK = 0x2000;
+            //cpu.state.SP = 0x200;
             cpu.state.PC = 0x0300;
-            cpu.state.R = 0x300;
+            cpu.state.R = 0x0300;
 
             //cpu.state.emulationFlag = true;
             //cpu.state.decimalModeFlag = true;
@@ -118,6 +121,8 @@
                     break;
                 }
             } while (this.isRunning);
+
+            Down();
         }
         public void reset()
         {

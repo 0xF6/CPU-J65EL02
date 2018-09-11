@@ -6,17 +6,17 @@
 
     class Program
     {
+        private static Machine machine;
         static void Main(string[] args)
         {
             Console.Title = "cpu_host";
             RCL.EnablingVirtualTerminalProcessing();
             RCL.SetThrowCustomColor(false);
-            
-            
-            new Thread((() =>
-            {
-                new Machine(@".\bootloader.elf", null , 0x20000).run();
-            })).Start();
+
+
+            machine = new Machine(@".\bootloader.efl", null, 0x20000);
+            machine.run();
+            machine = null;
             Console.ReadLine();
         }
     }

@@ -9,7 +9,7 @@
   "scripts": {
     "assembly": "make all",
     "build": "yarn clear; yarn assembly",
-    "clear": "rm -f *.o *.elf *.map *.lst"
+    "clear": "rm -f *.o *.elf *.map *.lst *.lt"
   },
   "dependencies": {
     "dasm-cli": "C:\\Git\\CPU-J65EL02\\src\\dasm-cli"
