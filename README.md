@@ -5,13 +5,11 @@ A C# implementation of the 65el02 CPU.
 ### Dependences for build 🔥
 1. NET Framework 4.7.2 (NET Core coming soon)
 
-### Build
-1. `./build.ps1` or `./build.sh`
-
 ### Details
-- `bootloader.bin`  - a bootloader for 6502 CPU
-- `hello_world.bin` - a program for loop write 'hello world!'
-- `redforth.img`    - forth os
+- `cpu`           - a cpu impl project
+- `bootloader`    - asm code for this cpu
+- `dasm-cli`      - nodejs cli applicaion for compile 6502 dasm
+- `screen`        - electron application screen emulator 
 
 #### Devices info
 ```CSharp
@@ -45,7 +43,7 @@ A C# implementation of the 65el02 CPU.
     Peripheral:
       Capacity: 0x100 (hardcode)
  - Wireless Display:
-    Address: at 0x11000 to 0x11006
+    Address: at 0x9500 to 0x9506
     Registers:
         Init        (REGINIT) = 0x0 write-only
         Connect     (REGCON)  = 0x1 write-olny
