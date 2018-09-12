@@ -90,7 +90,7 @@
             PushByte(data & 0xff);
         }
 
-        public int Pop(bool x)
+        public int Pop(bool x = false)
         {
             ou($"pop {x}");
             var word = !getState().emulationFlag && !(x ? getState().indexWidthFlag : getState().mWidthFlag);

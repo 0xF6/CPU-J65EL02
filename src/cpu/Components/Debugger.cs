@@ -59,8 +59,8 @@
             //state.PC = isBreak ? state.BRK : readWord(vector);
             getState().PC = Memory.address(getBus().read(vectorLow, true), getBus().read(vectorHigh, true));
 
-            if(getState().PC == ushort.MaxValue)
-                throw new BiosException("Divide by zero Exception", "YOU JUST CREATED A BLACK HOLE!");
+            //if(getState().PC == ushort.MaxValue)
+              //  throw new BiosException("x9 float overflow", "");
         }
         public void handleBrk(int returnPc)
         {

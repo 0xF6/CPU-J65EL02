@@ -11,30 +11,30 @@ iostatus = iobase + 1
 iocmd    = iobase + 2
 ioctrl   = iobase + 3
 ;; <> wireless display
-iowrldev = $9500
-iowrlreg = iowrldev + 1
-iowrlsta = iowrldev + 2
+;iowrldev = $9500
+;iowrlreg = iowrldev + 1
+;iowrlsta = iowrldev + 2
 ;; SECTION 'CODE'
-START
+START:
         CLI
-        LDA $0b
+        LDA #$0b
         STA iocmd
-        LDA $1a
+        LDA #$1a
         STA ioctrl
-        LDA $00
-        STA iowrldev ; warm up device
-        LDA $00
-        STA iowrlreg ; load cnnection shell
+        ;LDA $00
+        ;STA iowrldev ; warm up device
+        ;LDA $00
+        ;STA iowrlreg ; load cnnection shell
 
-INIT
-        LDX $00
-LOOP
+INIT:
+        LDX #$00
+LOOP:
         LDA iostatus 
-        AND $10
+        AND #$11
         BEQ LOOP      ; await status - LOADED
-        LDA iowrlsta
-        AND $02
-        BEQ LOOP   
+        ;LDA iowrlsta
+        ;AND $02
+        ;BEQ LOOP   
         LDA string,x ; write char at index
         BEQ INIT      
         STA iobase 
@@ -42,4 +42,4 @@ LOOP
         JMP LOOP  
 
 ;; declare variables
-string .byte "Elis gaaay ", 0
+string .byte "elis gaaay ", 0

@@ -22,7 +22,7 @@
 
         public CPU initCPU()
         {
-            return cpu = new CPU();
+            return cpu = new CPU(false);
         }
 
         public Bus initBus()

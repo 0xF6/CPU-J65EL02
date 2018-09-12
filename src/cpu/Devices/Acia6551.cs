@@ -21,8 +21,9 @@
         private int controlRegister;
         public Acia6551(int address, CPU cpu) : base(address, ACIA_SIZE, "ACIA", cpu)
         {
+            var a = 0x11;
         }
-
+        
         public override void write(int address, int data)
         {
             switch (address)

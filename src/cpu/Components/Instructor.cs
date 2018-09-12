@@ -54,7 +54,10 @@
             setZeroFlag(result == 0);
             setOverflowFlag(false); // BCD never sets overflow flag
 
-            getState().negativeFlag = (result & getScreen().negativeMWidth()) != 0; // N Flag is valid on CMOS 6502/65816
+            if (getCPU().IsLight)
+                setNegativeFlag(false); // BCD is never negative on NMOS 6502
+            else
+                getState().negativeFlag = (result & 0x80) != 0; // N Flag is valid on CMOS 6502/65816
             ou($"adc-d->  0x{result}");
             return result;
         }
@@ -85,15 +88,21 @@
             setZeroFlag(result == 0);
             setOverflowFlag(false); // BCD never sets overflow flag
 
+            if (getCPU().IsLight)
+                setNegativeFlag(false); // BCD is never negative on NMOS 6502
+            else
+                getState().negativeFlag = (result & 0x80) != 0; // N Flag is valid on CMOS 6502/65816
+
             getState().negativeFlag = (result & getScreen().negativeMWidth()) != 0; // N Flag is valid on CMOS 6502/65816
             ou($"sbc-d-> 0x{result}");
             return result & getScreen().maskMWidth();
         }
+
         /// <summary>
         /// Compare two values, and set carry, zero, and negative flags
         /// appropriately.
         /// </summary>
-        public void cmp(int reg, int operand, bool x)
+        public void cmp(int reg, int operand, bool x = false)
         {
             var tmp = (reg - operand) & (x ? getScreen().maskXWidth() : getScreen().maskMWidth());
             getCPU().carryFlag = reg >= operand;

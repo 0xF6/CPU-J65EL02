@@ -7,7 +7,6 @@
     using devices;
     using exceptions;
     using extensions;
-
     public class Machine
     {
         private bool isRunning = false;
@@ -16,7 +15,7 @@
         private CPU cpu;
         private RedBus redBus;
         private Bios bios;
-        
+        public static readonly bool IsLight = false;
         /// <summary>
         /// Constructs the machine with and empty 8k of memory.
         /// </summary>
@@ -40,7 +39,7 @@
             try
             {
                 bios = new Bios(this, 0x0100, "PGX");
-                cpu = new CPU();
+                cpu = new CPU(IsLight);
                 redBus = new RedBus(cpu);
                 bus = new Bus(redBus);
                 cpu.Bus = (bus);
@@ -50,9 +49,9 @@
 
                 var ram = new Memory(0x0000, coreRamSize - 1, cpu);
                 if (bootloader != null)
-                    ram.loadFromFile(bootloader, 0x0300, 0x3F, "bootloader");
+                    ram.loadFromFile(bootloader, 0x0300, 0x4268, "bootloader");
                 if (os != null)
-                    ram.loadFromFile(os, 0x0300, 0x3F, "os");
+                    ram.loadFromFile(os, 0x0300, 0x4268, "os");
                 bus.AddDevice(ram);
                 //bus.AddDevice(new Acia6850(0x8800, cpu)); // invalid instruction page
                 bus.AddDevice(new Acia6551(0x8800, cpu));
@@ -86,24 +85,12 @@
         {
             //cpu.state.POR = 0x2000;
             //cpu.state.BRK = 0x2000;
-            //cpu.state.SP = 0x200;
-            cpu.state.PC = 0x0300;
-            cpu.state.R = 0x0300;
+           // cpu.state.SP = 0x200;
+            cpu.state.PC = 0xC000;
+            cpu.state.R = 0xC000;
 
-            //cpu.state.emulationFlag = true;
+           //cpu.state.emulationFlag = true;
             //cpu.state.decimalModeFlag = true;
-        }
-
-        public void coldUpDevices()
-        {
-            // 0x9500 - start address of wireless display
-            if(bus.read(0x9503, true) == 0)
-                throw new CorruptedMemoryException("invalid state", bus.findDevice(0x11000));
-            if(bus.read(0x9502, true) == 0x0)
-                bus.write(0x9500, 0x0);
-            if(bus.read(0x9502, true) != 0x1)
-                throw new CorruptedMemoryException("invalid state", bus.findDevice(0x11000));
-            bus.write(0x9501, 0x0);
         }
         public void run()
         {
