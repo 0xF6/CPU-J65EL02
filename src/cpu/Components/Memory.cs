@@ -1,15 +1,13 @@
 ﻿namespace vm.components
 {
     using System;
-    using System.Collections.Generic;
     using System.Drawing;
     using System.IO;
-    using System.Linq;
     using System.Threading;
     using cpu;
     using devices;
     using exceptions;
-    using RC.Framework.Screens;
+    using Pastel;
 
     public class Memory : Device
     {
@@ -58,7 +56,7 @@
         }
 
         public void clear() => this.mem.Fill((byte)0);
-        private void ou(object s) => Log.nf(s, "MEM".To(Color.Red));
+        private void ou(object s) => Log.nf(s, "MEM".Pastel(Color.Red));
         private void os(object s)
         {
             s_deb_mem = s.ToString();

@@ -5,7 +5,7 @@
     using System.Drawing;
     using devices;
     using exceptions;
-    using RC.Framework.Screens;
+    using Pastel;
 
     public class Bus
     {
@@ -29,7 +29,7 @@
         {
             if (devices.Count == BusCapacity)
                 throw new OverflowBusCapacityException();
-            Log.nf($"dev->{device.GetType().Name}->init", RCL.Wrap("BUS", Color.Aquamarine));
+            Log.nf($"dev->{device.GetType().Name}->init", "BUS".Pastel(Color.Aquamarine));
             devices.Add(device);
             var newBoundaries = new int[boundaries.Length + 1];
             Array.Copy(boundaries, 0, newBoundaries, 1, boundaries.Length);

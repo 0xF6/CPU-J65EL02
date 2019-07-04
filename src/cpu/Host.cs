@@ -2,16 +2,14 @@
 {
     using System;
     using System.Linq;
-    using RC.Framework.Screens;
+    using System.Runtime.InteropServices;
 
-    class Program
+    internal class Host
     {
         private static Machine machine;
-        static void Main(string[] args)
+        public static void Main(string[] args)
         {
-            Console.Title = "cpu_host";
-            RCL.EnablingVirtualTerminalProcessing();
-            RCL.SetThrowCustomColor(false);
+            if(RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) Console.Title = "cpu_host";
             machine = new Machine(args.First(), null /*@".\redforth.img"*/, 0x20000);
             machine.run();
             Console.ReadLine();

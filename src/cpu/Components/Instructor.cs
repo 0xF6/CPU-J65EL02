@@ -2,8 +2,7 @@
 {
     using System.Drawing;
     using cpu;
-    using devices;
-    using RC.Framework.Screens;
+    using Pastel;
 
     public class Instructor : Component
     {
@@ -246,6 +245,6 @@
         public void setZeroFlag(bool zeroFlag) => getState().zeroFlag = zeroFlag;
         public void setOverflowFlag(bool overflowFlag) => getState().overflowFlag = overflowFlag;
 
-        private void ou(object s) => Log.nf(s, RCL.Wrap("ASM", Color.LightSeaGreen));
+        private void ou(object s) => Log.nf(s, "ASM".Pastel(Color.LightSeaGreen));
     }
 }

@@ -3,7 +3,7 @@
     using System.Drawing;
     using cpu;
     using cpu.tables;
-    using RC.Framework.Screens;
+    using Pastel;
 
     public class Stack : Component
     {
@@ -117,6 +117,6 @@
         }
 
         public int PopWord() => PopByte() | (PopByte() << 8);
-        private void ou(object s) => Log.nf(s, RCL.Wrap("STACK", Color.DeepPink));
+        private void ou(object s) => Log.nf(s, "STACK".Pastel(Color.DeepPink));
     }
 }

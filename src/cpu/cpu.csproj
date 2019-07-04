@@ -1,14 +1,14 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net472</TargetFramework>
+    <TargetFramework>netcoreapp3.0</TargetFramework>
     <OutputType>Exe</OutputType>
   </PropertyGroup>
   <PropertyGroup>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <AssemblyName>cpu_host</AssemblyName>
     <RootNamespace>vm</RootNamespace>
-    <StartupObject>vm.Program</StartupObject>
-    <LangVersion>7.1</LangVersion>
+    <StartupObject>vm.Host</StartupObject>
+    <LangVersion>8.0</LangVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
     <DefineConstants>TRACE;RELEASE;</DefineConstants>
@@ -26,7 +26,7 @@
   <ItemGroup>
     <PackageReference Include="Flurl" Version="2.8.0" />
     <PackageReference Include="Flurl.Http" Version="2.3.2" />
-    <PackageReference Include="RC.Core" Version="2018.1.0" />
+    <PackageReference Include="Pastel" Version="1.3.0" />
   </ItemGroup>
   <ItemGroup>
     <None Update="bootloader.img">

@@ -3,16 +3,12 @@
     using System.Drawing;
     using cpu;
     using cpu.tables;
-    using exceptions;
-    using RC.Framework.Screens;
+    using Pastel;
 
     public class Debugger : Component
     {
         private readonly bool _isLog;
-        public Debugger(CPU c, bool isLog = false) : base(c)
-        {
-            _isLog = isLog;
-        }
+        public Debugger(CPU c, bool isLog = false) : base(c) => _isLog = isLog;
 
 
         public void handleNmi()
@@ -30,8 +26,7 @@
 
         public void handleInterrupt(int returnPc, int vectorLow, int vectorHigh, bool isBreak)
         {
-            if(_isLog)
-            ou($"handleInterrupt++>{returnPc:X8} ; vectorL->{vectorLow:X5}, vectorH->{vectorHigh:X5}, break: {isBreak}");
+            if(_isLog) ou($"handleInterrupt++>{returnPc:X8} ; vectorL->{vectorLow:X5}, vectorH->{vectorHigh:X5}, break: {isBreak}");
             // Set the break flag before pushing. 
             // or
             // IRQ & NMI clear break flag
@@ -64,11 +59,10 @@
         }
         public void handleBrk(int returnPc)
         {
-            if(_isLog)
-            ou($"handleBrk++>{returnPc:X8}...");
+            if(_isLog) ou($"handleBrk++>{returnPc:X8}...");
             handleInterrupt(returnPc, RegisterTable.IRQ_VECTOR_L, RegisterTable.IRQ_VECTOR_H, true);
             getCPU().IRD = false;
         }
-        private void ou(object s) => Log.nf(RCL.Wrap(s, Color.Red), RCL.Wrap("DEB", Color.Red));
+        private void ou(object s) => Log.nf(s.ToString().Pastel(Color.Red), "DEB".Pastel(Color.Red));
     }
 }
