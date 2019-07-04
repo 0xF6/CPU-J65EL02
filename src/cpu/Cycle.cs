@@ -67,9 +67,9 @@
                                 effectiveAddress = Memory.address(state.args[0], state.args[1]);
                             }
                             else if (state.IR == 0xbe)
-                            effectiveAddress = yAddress(state.args[0], state.args[1]);
+                                effectiveAddress = yAddress(state.args[0], state.args[1]);
                             else
-                            effectiveAddress = xAddress(state.args[0], state.args[1]);
+                                effectiveAddress = xAddress(state.args[0], state.args[1]);
                             break;
                     }
                     break;
