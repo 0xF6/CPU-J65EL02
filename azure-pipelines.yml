@@ -6,7 +6,6 @@ jobs:
   - job: Windows
     pool:
       vmImage: 'windows-latest'
-
     variables:
       solution: '**/*.sln'
       buildPlatform: 'Any CPU'
@@ -34,14 +33,7 @@ jobs:
       displayName: "Build"
       name: "Build"
       inputs:
+        projects: '$(solution)'
         command: 'build'
-        feedsToUse: 'select'
-        versioningScheme: 'off'
-
-    - task:  DotNetCoreCLI@2
-      displayName: "Test"
-      name: "Test"
-      inputs:
-        command: 'test'
         feedsToUse: 'select'
         versioningScheme: 'off'
