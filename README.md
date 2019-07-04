@@ -1,9 +1,33 @@
-# CPU-J65EL02
-A C# implementation of the 65el02 CPU.
+<!-- Name -->
+<h1 align="center">
+  CPU-J65EL02
+</h1>
+<!-- desc -->
+<h4 align="center">
+  A C# implementation of the 65el02 CPU.
+</h4>
 
+<p align="center">
+  <a href="#">
+    <img alt="Azure pipelines" src="https://dev.azure.com/0xF6/CPU-J65EL02/_apis/build/status/0xF6.CPU-J65EL02?branchName=master">
+    <img alr="MIT License" src="http://img.shields.io/:license-MIT-blue.svg">
+  </a>
+  <a href="https://t.me/ivysola">
+    <img alt="Telegram" src="https://img.shields.io/badge/Ask%20Me-Anything-1f425f.svg">
+  </a>
+</p>
+<p align="center">
+  <a href="#">
+    <img src="https://forthebadge.com/images/badges/made-with-c-sharp.svg">
+    <img src="https://forthebadge.com/images/badges/designed-in-ms-paint.svg">
+    <img src="https://forthebadge.com/images/badges/ages-18.svg">
+    <img src="https://ForTheBadge.com/images/badges/winter-is-coming.svg">
+    <img src="https://forthebadge.com/images/badges/gluten-free.svg">
+  </a>
+</p>
 
 ### Dependences for build 🔥
-1. NET Framework 4.7.2 (NET Core coming soon)
+1. NET Core 3.0
 
 ### Details
 - `cpu`           - a cpu impl project
